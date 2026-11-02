@@ -24,8 +24,8 @@
   var enteredAs = null;
   var formWired = false, metasWired = false, gerentesWired = false;
   var myEntriesRaw = [];
-  var meState = { periodo: "semana", start: null, end: null };
-  var dState = { periodo: "semana", start: null, end: null, estoque: "", selected: null, knownIds: null };
+  var meState = { periodo: "semana", start: null, end: null, pilarSel: null };
+  var dState = { periodo: "semana", start: null, end: null, estoque: "", selected: null, knownIds: null, pilarSel: null };
 
   function $(id){ return document.getElementById(id); }
   function show(el){ el.hidden = false; }
@@ -102,6 +102,16 @@
     return c;
   }
 
+  // os 4 cards de totais (Visitas/Treinamentos/Propostas/Vendas) funcionam
+  // como filtro: clicar num deles filtra os gráficos logo abaixo por aquele
+  // pilar; clicar de novo no mesmo limpa o filtro.
+  var PILAR_FILTERS = {
+    visitas: { label: "Visitas", color: "var(--viz-cat-1)", pred: function(e){ return TIPOS_PILAR(e.tipo) === "Visitas"; } },
+    treinamentos: { label: "Treinamentos", color: "var(--viz-cat-2)", pred: function(e){ return TIPOS_PILAR(e.tipo) === "Treinamento"; } },
+    propostas: { label: "Propostas", color: "var(--viz-cat-3)", pred: function(e){ return e.tipo === "Venda - Proposta"; } },
+    vendas: { label: "Vendas", color: "var(--viz-cat-3)", pred: function(e){ return e.tipo === "Venda - Venda"; } }
+  };
+
   function monthBounds(ref){
     var d = ref ? new Date(ref) : new Date();
     var start = new Date(d.getFullYear(), d.getMonth(), 1);
@@ -149,8 +159,14 @@
     var up = pct > 0;
     return '<span class="d ' + (up ? "up" : "down") + '">' + (up ? "▲" : "▼") + " " + Math.abs(pct) + "% vs. período anterior</span>";
   }
-  function statTile(n, l, deltaHtml, sparkHtml){
-    return '<div class="stat"><div class="n">'+n+'</div><div class="l">'+l+'</div>'+(deltaHtml||"")+(sparkHtml||"")+'</div>';
+  function statTile(n, l, deltaHtml, sparkHtml, key, selected){
+    var cls = "stat" + (selected ? " is-selected" : "");
+    var attrs = key ? ' data-pilar="' + key + '" role="button" tabindex="0" aria-pressed="' + (selected ? "true" : "false") + '"' : "";
+    return '<div class="'+cls+'"'+attrs+'><div class="n">'+n+'</div><div class="l">'+l+'</div>'+(deltaHtml||"")+(sparkHtml||"")+'</div>';
+  }
+  function pilarFilterNoteHTML(selKey){
+    if (!selKey || !PILAR_FILTERS[selKey]) return "";
+    return 'Filtrando os gráficos abaixo por <b>' + renderEscaped(PILAR_FILTERS[selKey].label) + '</b> — toque no card de novo pra limpar.';
   }
   function fmtBRL(n){
     n = (typeof n === "number" && !isNaN(n)) ? n : 0;
@@ -738,6 +754,33 @@
       dState.estoque = $("d-estoque-filter").value;
       renderDiretorDashboard();
     });
+
+    wirePilarFilterTiles("me-totals", meState, renderMeAll);
+    wirePilarFilterTiles("d-kpi", dState, renderDiretorDashboard);
+  }
+
+  // delega o clique/Enter/Espaço nos cards de total (Visitas/Treinamentos/
+  // Propostas/Vendas): clicar seleciona aquele pilar como filtro dos
+  // gráficos abaixo; clicar de novo no mesmo card limpa o filtro.
+  function wirePilarFilterTiles(containerId, state, rerender){
+    var container = $(containerId);
+    function toggle(key){
+      if (!key || !PILAR_FILTERS[key]) return;
+      state.pilarSel = (state.pilarSel === key) ? null : key;
+      rerender();
+    }
+    container.addEventListener("click", function(ev){
+      var tile = ev.target.closest ? ev.target.closest(".stat[data-pilar]") : null;
+      if (!tile || !container.contains(tile)) return;
+      toggle(tile.getAttribute("data-pilar"));
+    });
+    container.addEventListener("keydown", function(ev){
+      if (ev.key !== "Enter" && ev.key !== " " && ev.key !== "Spacebar") return;
+      var tile = ev.target.closest ? ev.target.closest(".stat[data-pilar]") : null;
+      if (!tile || !container.contains(tile)) return;
+      ev.preventDefault();
+      toggle(tile.getAttribute("data-pilar"));
+    });
   }
 
   // re-runs the same branching logic as the onSnapshot handler, using the last-known `logins`
@@ -873,9 +916,10 @@
     var prevFiltered = filterEntries(myEntriesRaw, previousPeriodBounds(meState), "");
     $("me-totals-title").textContent = "Totais — " + periodLabel(meState);
     renderMeTotals(filtered, prevFiltered, bounds);
-    renderPilarBars($("me-pilar-chart"), pilarCounts(filtered));
-    renderNovoRecorrenteBars($("me-novo-chart"), novoRecorrenteCounts(filtered));
-    renderTrendChart($("me-trend-chart"), dailyCounts(filtered, bounds), "Atividade ao longo do período");
+    var chartEntries = (meState.pilarSel && PILAR_FILTERS[meState.pilarSel]) ? filtered.filter(PILAR_FILTERS[meState.pilarSel].pred) : filtered;
+    renderPilarBars($("me-pilar-chart"), pilarCounts(chartEntries));
+    renderNovoRecorrenteBars($("me-novo-chart"), novoRecorrenteCounts(chartEntries));
+    renderTrendChart($("me-trend-chart"), dailyCounts(chartEntries, bounds), "Atividade ao longo do período");
 
     var wBounds = weekBounds();
     var w = computeWeek(myEntriesRaw, wBounds);
@@ -886,11 +930,13 @@
     var t = computeTotals(entries);
     var pt = computeTotals(prevEntries || []);
     var spark = function(pred, colorVar){ return sparklineSVG(dailyCounts(entries.filter(pred), bounds).map(function(d){ return d.value; }), colorVar); };
+    var sel = meState.pilarSel;
     $("me-totals").innerHTML =
-      statTile(t.visitas, "Visitas", deltaBadge(t.visitas, pt.visitas), spark(function(e){ return TIPOS_PILAR(e.tipo) === "Visitas"; }, "var(--viz-cat-1)")) +
-      statTile(t.treinamentos, "Treinamentos", deltaBadge(t.treinamentos, pt.treinamentos), spark(function(e){ return TIPOS_PILAR(e.tipo) === "Treinamento"; }, "var(--viz-cat-2)")) +
-      statTile(t.propostas, "Propostas", deltaBadge(t.propostas, pt.propostas), spark(function(e){ return e.tipo === "Venda - Proposta"; }, "var(--viz-cat-3)")) +
-      statTile(t.vendas, "Vendas", deltaBadge(t.vendas, pt.vendas), spark(function(e){ return e.tipo === "Venda - Venda"; }, "var(--viz-cat-3)"));
+      statTile(t.visitas, "Visitas", deltaBadge(t.visitas, pt.visitas), spark(PILAR_FILTERS.visitas.pred, PILAR_FILTERS.visitas.color), "visitas", sel === "visitas") +
+      statTile(t.treinamentos, "Treinamentos", deltaBadge(t.treinamentos, pt.treinamentos), spark(PILAR_FILTERS.treinamentos.pred, PILAR_FILTERS.treinamentos.color), "treinamentos", sel === "treinamentos") +
+      statTile(t.propostas, "Propostas", deltaBadge(t.propostas, pt.propostas), spark(PILAR_FILTERS.propostas.pred, PILAR_FILTERS.propostas.color), "propostas", sel === "propostas") +
+      statTile(t.vendas, "Vendas", deltaBadge(t.vendas, pt.vendas), spark(PILAR_FILTERS.vendas.pred, PILAR_FILTERS.vendas.color), "vendas", sel === "vendas");
+    if ($("me-pilar-filter-note")) $("me-pilar-filter-note").innerHTML = pilarFilterNoteHTML(sel);
 
     var ticket = t.vendas ? (t.vgv / t.vendas) : 0;
     $("me-vgv-hero").innerHTML = heroKpi(
@@ -1010,6 +1056,8 @@
 
     var agg = { visitas: 0, treinamentos: 0, propostas: 0, vendas: 0, vgv: 0, vgvPropostas: 0 };
     var prevAgg = { visitas: 0, treinamentos: 0, propostas: 0, vendas: 0, vgv: 0, vgvPropostas: 0 };
+    var sel = dState.pilarSel;
+    var pilarPred = (sel && PILAR_FILTERS[sel]) ? PILAR_FILTERS[sel].pred : null;
     var ranked = [], grouped = [], allFiltered = [];
     ids.forEach(function(id){
       var filtered = filterEntries(entriesByGerente[id] || [], bounds, dState.estoque);
@@ -1020,19 +1068,25 @@
       prevAgg.visitas += prevT.visitas; prevAgg.treinamentos += prevT.treinamentos;
       prevAgg.propostas += prevT.propostas; prevAgg.vendas += prevT.vendas; prevAgg.vgv += prevT.vgv; prevAgg.vgvPropostas += prevT.vgvPropostas;
       var nome = (logins[id] || {}).nome || id;
-      ranked.push({ id: id, label: nome, value: filtered.length });
-      var pc = pilarCounts(filtered);
+      var chartFiltered = pilarPred ? filtered.filter(pilarPred) : filtered;
+      ranked.push({ id: id, label: nome, value: chartFiltered.length });
+      var pc = pilarCounts(chartFiltered);
       grouped.push({ id: id, label: nome, visitas: pc["Visitas"], treinamento: pc["Treinamento"], venda: pc["Venda"] });
-      allFiltered = allFiltered.concat(filtered);
+      allFiltered = allFiltered.concat(chartFiltered);
     });
     ranked.sort(function(a,b){ return b.value - a.value; });
 
-    var spark = function(pred, colorVar){ return sparklineSVG(dailyCounts(allFiltered.filter(pred), bounds).map(function(d){ return d.value; }), colorVar); };
+    // os sparklines de cada card usam sempre o pilar do próprio card (não
+    // mudam com o filtro — eles já SÃO o filtro de cada categoria).
+    var allUnfiltered = [];
+    ids.forEach(function(id){ allUnfiltered = allUnfiltered.concat(filterEntries(entriesByGerente[id] || [], bounds, dState.estoque)); });
+    var spark = function(pred, colorVar){ return sparklineSVG(dailyCounts(allUnfiltered.filter(pred), bounds).map(function(d){ return d.value; }), colorVar); };
     $("d-kpi").innerHTML =
-      statTile(agg.visitas, "Visitas", deltaBadge(agg.visitas, prevAgg.visitas), spark(function(e){ return TIPOS_PILAR(e.tipo) === "Visitas"; }, "var(--viz-cat-1)")) +
-      statTile(agg.treinamentos, "Treinamentos", deltaBadge(agg.treinamentos, prevAgg.treinamentos), spark(function(e){ return TIPOS_PILAR(e.tipo) === "Treinamento"; }, "var(--viz-cat-2)")) +
-      statTile(agg.propostas, "Propostas", deltaBadge(agg.propostas, prevAgg.propostas), spark(function(e){ return e.tipo === "Venda - Proposta"; }, "var(--viz-cat-3)")) +
-      statTile(agg.vendas, "Vendas", deltaBadge(agg.vendas, prevAgg.vendas), spark(function(e){ return e.tipo === "Venda - Venda"; }, "var(--viz-cat-3)"));
+      statTile(agg.visitas, "Visitas", deltaBadge(agg.visitas, prevAgg.visitas), spark(PILAR_FILTERS.visitas.pred, PILAR_FILTERS.visitas.color), "visitas", sel === "visitas") +
+      statTile(agg.treinamentos, "Treinamentos", deltaBadge(agg.treinamentos, prevAgg.treinamentos), spark(PILAR_FILTERS.treinamentos.pred, PILAR_FILTERS.treinamentos.color), "treinamentos", sel === "treinamentos") +
+      statTile(agg.propostas, "Propostas", deltaBadge(agg.propostas, prevAgg.propostas), spark(PILAR_FILTERS.propostas.pred, PILAR_FILTERS.propostas.color), "propostas", sel === "propostas") +
+      statTile(agg.vendas, "Vendas", deltaBadge(agg.vendas, prevAgg.vendas), spark(PILAR_FILTERS.vendas.pred, PILAR_FILTERS.vendas.color), "vendas", sel === "vendas");
+    if ($("d-pilar-filter-note")) $("d-pilar-filter-note").innerHTML = pilarFilterNoteHTML(sel);
 
     var ticket = agg.vendas ? (agg.vgv / agg.vendas) : 0;
     $("d-vgv-hero").innerHTML = heroKpi(
