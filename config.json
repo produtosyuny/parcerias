@@ -1,0 +1,8 @@
+{
+  "estoques": ["Uapé", "Esquina", "155", "Zip", "Jesuíno", "Lorena", "Outro"],
+  "metasDefault": { "plantao": 1, "visita": 1, "apresentacao": 3 },
+
+  "_comentario_sheets": "Depois de implantar o Code.gs como Web App (veja o README), cole aqui a URL que o Google te deu em sheetsWebAppUrl. Não precisa trocar o sheetsToken — ele já é o mesmo valor que está em Code.gs.",
+  "sheetsWebAppUrl": "https://script.google.com/macros/s/AKfycbx-YcAc49LwKANSNGm8f1X1QiScbHIIRNKEDotI5OCutGMptieQmN_uqrGfY9tblR_tvA/exec",
+  "sheetsToken": "Lg-7lrc1_HHNaPkYuoo-PrmG"
+}
