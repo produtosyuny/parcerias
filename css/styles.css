@@ -249,6 +249,22 @@ textarea{resize:vertical; min-height:64px}
 .log-row .who{color:var(--accent-2); font-weight:700}
 .empty{color:var(--muted); font-size:14px; text-align:center; padding:20px 0}
 
+/* corretores (cadastro do Portal Parcerias) */
+.corretor-list{display:flex; flex-direction:column; gap:10px}
+.corretor-card{
+  border:1px solid var(--line); border-radius:14px; padding:14px;
+  background:color-mix(in srgb, var(--card) 55%, transparent);
+}
+.cc-head{display:flex; align-items:flex-start; justify-content:space-between; gap:10px}
+.cc-nome{font-weight:700; font-size:15px; min-width:0}
+.cc-meta{font-size:13px; color:var(--muted); margin-top:4px}
+.cc-contact{font-size:13px; margin-top:8px; display:flex; flex-wrap:wrap; gap:4px 12px}
+.cc-contact a{color:var(--accent-2); text-decoration:none; font-weight:600}
+.cc-contact a:hover{text-decoration:underline}
+.cc-gerente{font-size:12px; color:var(--muted); margin-top:8px}
+.cc-gerente-missing{color:var(--red); font-weight:600}
+.cc-foot{font-size:11px; color:var(--muted); margin-top:8px; opacity:.8}
+
 /* filters */
 .filters-row{display:flex; flex-direction:column; gap:12px}
 .pill-row{display:flex; gap:6px; flex-wrap:wrap}

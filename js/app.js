@@ -22,8 +22,13 @@
   var unsubMyEntries = null;
   var me = null;                // { id, nome, papel }
   var enteredAs = null;
-  var formWired = false, metasWired = false, gerentesWired = false;
+  var formWired = false, metasWired = false, gerentesWired = false, corretoresWired = false;
   var myEntriesRaw = [];
+  var unsubMyCorretores = null;
+  var myCorretoresRaw = [];     // corretores do Portal que escolheram ESTE gerente
+  var unsubCorretoresAll = null;
+  var allCorretoresRaw = [];    // todos os corretores do Portal (uso do diretor)
+  var dCorretoresFiltro = "";   // "" = todos | "__sem__" = não vinculados | id do gerente
   var meState = { periodo: "semana", start: null, end: null, pilarSel: null };
   var dState = { periodo: "semana", start: null, end: null, estoque: "", selected: null, knownIds: null, pilarSel: null };
 
@@ -646,6 +651,8 @@
       if (me.papel === "diretor"){
         syncGerenteEntrySubscriptions();
         renderGerentesList();
+        populateCorretoresFiltro();
+        watchCorretoresAll();
       }
     }, function(){ toast("Não foi possível carregar os logins."); });
   }
@@ -696,8 +703,11 @@
 
     $("logout-btn").addEventListener("click", function(){
       if (unsubMyEntries){ try{ unsubMyEntries(); }catch(e){} unsubMyEntries = null; }
+      if (unsubMyCorretores){ try{ unsubMyCorretores(); }catch(e){} unsubMyCorretores = null; }
+      if (unsubCorretoresAll){ try{ unsubCorretoresAll(); }catch(e){} unsubCorretoresAll = null; }
       Object.keys(unsubEntries).forEach(function(id){ try{ unsubEntries[id](); }catch(e){} });
       unsubEntries = {}; entriesByGerente = {};
+      myCorretoresRaw = []; allCorretoresRaw = [];
       me = null; enteredAs = null;
       try { sessionStorage.removeItem("painel-me"); } catch(e){}
       watchLogins_apply();
@@ -809,6 +819,8 @@
     if (me.papel === "diretor"){
       syncGerenteEntrySubscriptions();
       renderGerentesList();
+      populateCorretoresFiltro();
+      watchCorretoresAll();
     }
   }
 
@@ -907,6 +919,12 @@
       renderMeAll();
       renderMeLog(myEntriesRaw);
     }, function(){ toast("Não foi possível carregar seus registros."); });
+
+    if (unsubMyCorretores){ try{ unsubMyCorretores(); }catch(e){} }
+    unsubMyCorretores = db.collection("corretores/" + me.id).onSnapshot(function(snap){
+      myCorretoresRaw = snap.docs.map(function(d){ return d.data(); });
+      renderMeCorretores(myCorretoresRaw);
+    }, function(){ toast("Não foi possível carregar os corretores."); });
   }
 
   function renderMeAll(){
@@ -957,6 +975,109 @@
     var label = renderEscaped(e.tipo) + (e.parceiro ? " · " + renderEscaped(e.parceiro) : "");
     return '<div class="log-row"><div class="d">' + d + '</div><div class="t">' +
       (who ? '<span class="who">' + renderEscaped(who) + '</span> · ' : '') + label + '</div></div>';
+  }
+
+  // ---------- corretores (cadastro do Portal Parcerias) ----------
+  // CPF e senha (hash) nunca chegam até aqui — o Code.gs já não manda esses
+  // campos (ver comentário lá). Aqui só exibe o que veio.
+  function waLink(whatsapp){
+    var digits = String(whatsapp || "").replace(/\D/g, "");
+    return digits ? "https://wa.me/55" + digits : null;
+  }
+  function creciStatusPillHTML(status){
+    var s = String(status || "").trim();
+    var norm = s.toLowerCase();
+    if (!s) return '<span class="pill low">Sem status</span>';
+    if (norm.indexOf("a validar") !== -1) return '<span class="pill low">A validar</span>';
+    if (norm.indexOf("valid") !== -1) return '<span class="pill ok">' + renderEscaped(s) + '</span>';
+    return '<span class="pill low">' + renderEscaped(s) + '</span>';
+  }
+  function corretorCardHTML(c, opts){
+    opts = opts || {};
+    var atua = c.atuaComo === "Imobiliária"
+      ? ("Imobiliária" + (c.imobiliaria ? " · " + renderEscaped(c.imobiliaria) : ""))
+      : "Autônomo (PF)";
+    var creci = c.creci ? "CRECI " + renderEscaped(c.creci) : "Sem CRECI informado";
+    var wa = waLink(c.whatsapp);
+    var contactBits = [];
+    if (wa) contactBits.push('<a href="' + wa + '" target="_blank" rel="noopener">' + renderEscaped(c.whatsapp || "WhatsApp") + '</a>');
+    else if (c.whatsapp) contactBits.push(renderEscaped(c.whatsapp));
+    if (c.email) contactBits.push('<a href="mailto:' + renderEscaped(c.email) + '">' + renderEscaped(c.email) + '</a>');
+    var gerenteLine = "";
+    if (opts.showGerente){
+      gerenteLine = c.gerenteNome
+        ? '<div class="cc-gerente">Gerente: ' + renderEscaped(c.gerenteNome) + '</div>'
+        : '<div class="cc-gerente cc-gerente-missing">Não vinculado a um gerente (escolheu: "' + renderEscaped(c.gerenteEscolhidoTexto || "—") + '")</div>';
+    }
+    return '<div class="corretor-card">' +
+      '<div class="cc-head"><div class="cc-nome">' + renderEscaped(c.nome) + '</div>' + creciStatusPillHTML(c.creciValidado) + '</div>' +
+      '<div class="cc-meta">' + atua + ' · ' + creci + '</div>' +
+      (contactBits.length ? '<div class="cc-contact">' + contactBits.join(' · ') + '</div>' : "") +
+      gerenteLine +
+      '<div class="cc-foot">Cadastrado em ' + renderEscaped(c.dataCadastro || "—") + '</div>' +
+    '</div>';
+  }
+
+  // -- visão do gerente: só os corretores que escolheram ele --
+  function renderMeCorretores(list){
+    var countEl = $("g-corretores-count");
+    if (countEl) countEl.textContent = list.length + (list.length === 1 ? " corretor" : " corretores");
+    if (!list.length){ $("g-corretores-list").innerHTML = '<p class="empty">Nenhum corretor escolheu você ainda no Portal Parcerias.</p>'; return; }
+    $("g-corretores-list").innerHTML = list.map(function(c){ return corretorCardHTML(c, {}); }).join("");
+  }
+
+  // -- visão do diretor: todos os corretores, com filtro por gerente --
+  function populateCorretoresFiltro(){
+    var sel = $("d-corretores-filtro");
+    if (!sel) return;
+    var current = sel.value || dCorretoresFiltro;
+    var ids = Object.keys(logins).filter(function(id){ return logins[id].papel === "gerente"; })
+      .sort(function(a,b){ return (logins[a].nome||"").localeCompare(logins[b].nome||""); });
+    sel.innerHTML = '<option value="">Todos os gerentes</option>';
+    ids.forEach(function(id){
+      var opt = document.createElement("option");
+      opt.value = id; opt.textContent = logins[id].nome || id;
+      sel.appendChild(opt);
+    });
+    var optSem = document.createElement("option");
+    optSem.value = "__sem__"; optSem.textContent = "Não vinculado a um gerente";
+    sel.appendChild(optSem);
+    sel.value = current;
+    if (sel.value !== current) sel.value = ""; // a opção salva sumiu (gerente removido) — volta pra "Todos"
+  }
+
+  function watchCorretoresAll(){
+    if (!corretoresWired){
+      corretoresWired = true;
+      $("d-corretores-filtro").addEventListener("change", function(){
+        dCorretoresFiltro = $("d-corretores-filtro").value;
+        renderDiretorCorretores();
+      });
+    }
+    if (unsubCorretoresAll) return; // já tem uma assinatura ativa, não duplica
+    unsubCorretoresAll = db.collection("corretores").onSnapshot(function(snap){
+      allCorretoresRaw = snap.docs.map(function(d){ return d.data(); });
+      renderDiretorCorretores();
+    }, function(){ toast("Não foi possível carregar os corretores."); });
+  }
+
+  function renderDiretorCorretores(){
+    if (!me || me.papel !== "diretor") return;
+    var list = allCorretoresRaw;
+    var aValidar = list.filter(function(c){ return String(c.creciValidado || "").toLowerCase().indexOf("a validar") !== -1; }).length;
+    var naoVinculados = list.filter(function(c){ return !c.gerenteId; }).length;
+    $("d-corretores-resumo").innerHTML =
+      statTile(list.length, "Corretores cadastrados") +
+      statTile(aValidar, "CRECI a validar") +
+      statTile(naoVinculados, "Não vinculados a um gerente");
+
+    var filtro = dCorretoresFiltro;
+    var filtered = list;
+    if (filtro === "__sem__") filtered = list.filter(function(c){ return !c.gerenteId; });
+    else if (filtro) filtered = list.filter(function(c){ return c.gerenteId === filtro; });
+
+    if (!filtered.length){ $("d-corretores-list").innerHTML = '<p class="empty">Nenhum corretor nesse filtro.</p>'; return; }
+    $("d-corretores-list").innerHTML = filtered.map(function(c){ return corretorCardHTML(c, { showGerente: true }); }).join("");
   }
 
   // ---------- diretor view ----------

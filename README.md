@@ -52,6 +52,28 @@ não é uma senha forte de verdade. E as senhas de login do Painel (diretor/gere
 em texto puro na aba "Login" da planilha. Pra esse uso interno, pequeno e de time, isso é
 uma troca razoável — mas não reuse ali uma senha importante de verdade.
 
+### Corretores do Portal Parcerias
+
+O Portal Parcerias (onde o corretor se cadastra sozinho) grava tudo numa planilha
+**separada**, chamada "Cadastros do Portal Parcerias (PRIVADA)". O `Code.gs` abre essa
+outra planilha pelo ID (constante `SPREADSHEET_ID_CADASTROS`, no topo do arquivo) e casa
+o campo "Gerente escolhido" com o nome de cada gerente cadastrado na aba Login, pra cada
+um ver só os corretores que o escolheram. Se o texto que o corretor digita/seleciona no
+Portal não bater com nenhum gerente (ex.: "Não tenho gerente", ou um nome com erro de
+digitação), o corretor aparece pro diretor como "Não vinculado a um gerente" — não some,
+só não cai na lista de nenhum gerente específico.
+
+Por segurança, só uma parte dos campos chega ao Painel: nome, CRECI e status de
+validação, se atua como autônomo ou por imobiliária, WhatsApp, e-mail e data de
+cadastro. **CPF, CNPJ e a senha (hash) do corretor nunca saem da planilha de
+cadastros** — o endpoint do Web App é protegido só por um token simples (veja a seção
+de segurança acima), então é melhor manter esses dados sensíveis de fora dele. Se um
+dia precisar do CPF dentro do Painel, dá pra adicionar, mas vale pensar bem antes.
+
+Se o ID dessa planilha de cadastros mudar (por exemplo, se o Portal passar a gravar em
+outro lugar), é só atualizar o valor de `SPREADSHEET_ID_CADASTROS` no `Code.gs` e
+reimplantar como Nova versão.
+
 ### Voltar ao modo de teste (sem planilha)
 
 Se quiser testar alguma mudança no Painel sem afetar a planilha real, troque em

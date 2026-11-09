@@ -75,6 +75,7 @@
         <button class="tab" data-tab="g-novo" aria-selected="true">Novo registro</button>
         <button class="tab" data-tab="g-numeros" aria-selected="false">Meus números</button>
         <button class="tab" data-tab="g-historico" aria-selected="false">Meu histórico</button>
+        <button class="tab" data-tab="g-corretores" aria-selected="false">Meus corretores</button>
       </div>
 
       <section id="g-novo">
@@ -184,6 +185,14 @@
           <div id="me-log"></div>
         </div>
       </section>
+
+      <section id="g-corretores" hidden>
+        <div class="card">
+          <h2>Corretores que escolheram você — <span id="g-corretores-count">0 corretores</span></h2>
+          <p class="hint">Vem do cadastro que o corretor faz sozinho no Portal Parcerias. CPF não aparece aqui por segurança.</p>
+          <div class="corretor-list" id="g-corretores-list"></div>
+        </div>
+      </section>
     </div>
 
     <!-- ===== DIRETOR VIEW ===== -->
@@ -196,6 +205,7 @@
         </div>
         <button class="tab" data-tab="d-visao" aria-selected="true">Visão geral</button>
         <button class="tab" data-tab="d-atividade" aria-selected="false">Atividade recente</button>
+        <button class="tab" data-tab="d-corretores" aria-selected="false">Corretores</button>
         <button class="tab" data-tab="d-metas" aria-selected="false">Metas</button>
         <button class="tab" data-tab="d-gerentes" aria-selected="false">Gerentes</button>
       </div>
@@ -278,6 +288,24 @@
         <div class="card">
           <h2>Últimos registros do time</h2>
           <div id="d-log"></div>
+        </div>
+      </section>
+
+      <section id="d-corretores" hidden>
+        <div class="card">
+          <h2>Corretores cadastrados no Portal Parcerias</h2>
+          <p class="hint">Vem do cadastro que o corretor faz sozinho no Portal. CPF não aparece aqui por segurança — se precisar, está direto na planilha "Cadastros do Portal Parcerias".</p>
+          <div class="stat-grid" id="d-corretores-resumo"></div>
+        </div>
+        <div class="card">
+          <h2>Filtrar por gerente</h2>
+          <select id="d-corretores-filtro">
+            <option value="">Todos os gerentes</option>
+          </select>
+        </div>
+        <div class="card">
+          <h2>Corretores</h2>
+          <div class="corretor-list" id="d-corretores-list"></div>
         </div>
       </section>
 
