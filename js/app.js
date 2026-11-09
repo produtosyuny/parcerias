@@ -924,6 +924,7 @@
     unsubMyCorretores = db.collection("corretores/" + me.id).onSnapshot(function(snap){
       myCorretoresRaw = snap.docs.map(function(d){ return d.data(); });
       renderMeCorretores(myCorretoresRaw);
+      renderMeAll(); // o KPI "Cadastros" nos Totais também depende disso
     }, function(){ toast("Não foi possível carregar os corretores."); });
   }
 
@@ -949,11 +950,15 @@
     var pt = computeTotals(prevEntries || []);
     var spark = function(pred, colorVar){ return sparklineSVG(dailyCounts(entries.filter(pred), bounds).map(function(d){ return d.value; }), colorVar); };
     var sel = meState.pilarSel;
+    var cadAtual = myCorretoresRaw.filter(function(c){ return corretorInBounds_(c, bounds); }).length;
+    var cadAnterior = myCorretoresRaw.filter(function(c){ return corretorInBounds_(c, previousPeriodBounds(meState)); }).length;
+    var cadSpark = sparklineSVG(corretoresDailyCounts_(myCorretoresRaw, bounds).map(function(d){ return d.value; }), "var(--viz-cat-4)");
     $("me-totals").innerHTML =
       statTile(t.visitas, "Visitas", deltaBadge(t.visitas, pt.visitas), spark(PILAR_FILTERS.visitas.pred, PILAR_FILTERS.visitas.color), "visitas", sel === "visitas") +
       statTile(t.treinamentos, "Treinamentos", deltaBadge(t.treinamentos, pt.treinamentos), spark(PILAR_FILTERS.treinamentos.pred, PILAR_FILTERS.treinamentos.color), "treinamentos", sel === "treinamentos") +
       statTile(t.propostas, "Propostas", deltaBadge(t.propostas, pt.propostas), spark(PILAR_FILTERS.propostas.pred, PILAR_FILTERS.propostas.color), "propostas", sel === "propostas") +
-      statTile(t.vendas, "Vendas", deltaBadge(t.vendas, pt.vendas), spark(PILAR_FILTERS.vendas.pred, PILAR_FILTERS.vendas.color), "vendas", sel === "vendas");
+      statTile(t.vendas, "Vendas", deltaBadge(t.vendas, pt.vendas), spark(PILAR_FILTERS.vendas.pred, PILAR_FILTERS.vendas.color), "vendas", sel === "vendas") +
+      cadastroStatTileHTML(cadAtual, deltaBadge(cadAtual, cadAnterior), cadSpark);
     if ($("me-pilar-filter-note")) $("me-pilar-filter-note").innerHTML = pilarFilterNoteHTML(sel);
 
     var ticket = t.vendas ? (t.vgv / t.vendas) : 0;
@@ -980,6 +985,36 @@
   // ---------- corretores (cadastro do Portal Parcerias) ----------
   // CPF e senha (hash) nunca chegam até aqui — o Code.gs já não manda esses
   // campos (ver comentário lá). Aqui só exibe o que veio.
+
+  // dataCadastro vem como "dd/mm/aaaa HH:MM" (texto do Portal) — diferente do
+  // "aaaa-mm-dd" usado nos registros do Painel — por isso tem seu próprio
+  // parser/contador em vez de reaproveitar inWeek()/dailyCounts() direto.
+  function parseDataCadastro_(s){
+    var m = /^(\d{2})\/(\d{2})\/(\d{4})/.exec(String(s || ""));
+    if (!m) return null;
+    return new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+  }
+  function corretorInBounds_(c, bounds){
+    var d = parseDataCadastro_(c.dataCadastro);
+    return !!d && d >= bounds.start && d <= bounds.end;
+  }
+  // monta uma lista "entries-like" (só com .data em aaaa-mm-dd) pra poder
+  // reaproveitar dailyCounts()/sparklineSVG() do resto do Painel
+  function corretoresDailyCounts_(list, bounds){
+    var synthetic = list.map(function(c){
+      var d = parseDataCadastro_(c.dataCadastro);
+      if (!d) return null;
+      return { data: d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0") };
+    }).filter(Boolean);
+    return dailyCounts(synthetic, bounds);
+  }
+  // tile de KPI "Cadastros" — fora do PILAR_FILTERS de propósito: cadastro no
+  // Portal não é uma "ação" do Registro, então não clica pra filtrar os
+  // gráficos de pilar abaixo (só informa).
+  function cadastroStatTileHTML(n, deltaHtml, sparkHtml){
+    return '<div class="stat stat-cadastros"><div class="n">'+n+'</div><div class="l">Cadastros</div>'+(deltaHtml||"")+(sparkHtml||"")+'</div>';
+  }
+
   function waLink(whatsapp){
     var digits = String(whatsapp || "").replace(/\D/g, "");
     return digits ? "https://wa.me/55" + digits : null;
@@ -1058,6 +1093,7 @@
     unsubCorretoresAll = db.collection("corretores").onSnapshot(function(snap){
       allCorretoresRaw = snap.docs.map(function(d){ return d.data(); });
       renderDiretorCorretores();
+      renderDiretorDashboard(); // o KPI "Cadastros" nos Totais do time também depende disso
     }, function(){ toast("Não foi possível carregar os corretores."); });
   }
 
@@ -1202,11 +1238,15 @@
     var allUnfiltered = [];
     ids.forEach(function(id){ allUnfiltered = allUnfiltered.concat(filterEntries(entriesByGerente[id] || [], bounds, dState.estoque)); });
     var spark = function(pred, colorVar){ return sparklineSVG(dailyCounts(allUnfiltered.filter(pred), bounds).map(function(d){ return d.value; }), colorVar); };
+    var cadAtual = allCorretoresRaw.filter(function(c){ return corretorInBounds_(c, bounds); }).length;
+    var cadAnterior = allCorretoresRaw.filter(function(c){ return corretorInBounds_(c, prevBounds); }).length;
+    var cadSpark = sparklineSVG(corretoresDailyCounts_(allCorretoresRaw, bounds).map(function(d){ return d.value; }), "var(--viz-cat-4)");
     $("d-kpi").innerHTML =
       statTile(agg.visitas, "Visitas", deltaBadge(agg.visitas, prevAgg.visitas), spark(PILAR_FILTERS.visitas.pred, PILAR_FILTERS.visitas.color), "visitas", sel === "visitas") +
       statTile(agg.treinamentos, "Treinamentos", deltaBadge(agg.treinamentos, prevAgg.treinamentos), spark(PILAR_FILTERS.treinamentos.pred, PILAR_FILTERS.treinamentos.color), "treinamentos", sel === "treinamentos") +
       statTile(agg.propostas, "Propostas", deltaBadge(agg.propostas, prevAgg.propostas), spark(PILAR_FILTERS.propostas.pred, PILAR_FILTERS.propostas.color), "propostas", sel === "propostas") +
-      statTile(agg.vendas, "Vendas", deltaBadge(agg.vendas, prevAgg.vendas), spark(PILAR_FILTERS.vendas.pred, PILAR_FILTERS.vendas.color), "vendas", sel === "vendas");
+      statTile(agg.vendas, "Vendas", deltaBadge(agg.vendas, prevAgg.vendas), spark(PILAR_FILTERS.vendas.pred, PILAR_FILTERS.vendas.color), "vendas", sel === "vendas") +
+      cadastroStatTileHTML(cadAtual, deltaBadge(cadAtual, cadAnterior), cadSpark);
     if ($("d-pilar-filter-note")) $("d-pilar-filter-note").innerHTML = pilarFilterNoteHTML(sel);
 
     var ticket = agg.vendas ? (agg.vgv / agg.vendas) : 0;
