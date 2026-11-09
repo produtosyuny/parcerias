@@ -122,6 +122,24 @@
       };
     }
 
+    // corretores cadastrados no Portal Parcerias — "corretores" (sem filtro,
+    // uso do diretor: vêm com gerenteId/gerenteNome já casados por nome) ou
+    // "corretores/<id-do-gerente>" (só os dele).
+    if (path === "corretores" || /^corretores\/(.+)$/.test(path)) {
+      var cm = path.match(/^corretores\/(.+)$/);
+      var gid = cm ? cm[1] : null;
+      var pollerC = makePoller(
+        function () { return apiGet("listCorretores", gid ? { gerenteId: gid } : {}); },
+        function (list) {
+          return { docs: (list || []).map(function (c, i) { return { id: "c" + i, data: function () { return c; } }; }) };
+        }
+      );
+      return {
+        onSnapshot: pollerC.onSnapshot,
+        add: function () { return Promise.reject(new Error("corretores são cadastrados pelo Portal, não pelo Painel")); }
+      };
+    }
+
     m = path.match(/^registros\/(.+)\/entries$/);
     if (m) {
       var gerenteId = m[1];
