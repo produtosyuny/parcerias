@@ -263,12 +263,23 @@ function corretorMatchesGerente_(gerenteEscolhidoTexto, loginNomeGerente) {
 // vazio/"all" pra ver todo mundo (uso do diretor) — nesse caso cada
 // corretor já vem com o gerenteId/gerenteNome que casou, ou null se o texto
 // que ele escolheu no Portal não bateu com nenhum gerente cadastrado.
+// formata uma célula de data/hora da planilha de Cadastros como "dd/MM/aaaa
+// HH:mm" — mesma lógica robusta de isDateValue_ usada em listEntries_,
+// porque o Google Sheets guarda "06/11/2026 14:02" como um Date de verdade
+// por trás dos panos, e String(esse Date) dá "Mon Nov 09 2026 14:21:59
+// GMT-0300 (...)" em vez da data no formato esperado.
+function formatDataHora_(cell, tz) {
+  if (isDateValue_(cell)) return Utilities.formatDate(cell, tz, "dd/MM/yyyy HH:mm");
+  return String(cell || "");
+}
+
 function listCorretores_(gerenteId) {
   var ss = SpreadsheetApp.openById(SPREADSHEET_ID_CADASTROS);
   var sh = ss.getSheetByName(SHEET_CADASTROS);
   var lastRow = sh.getLastRow();
   if (lastRow < 2) return [];
   var rows = sh.getRange(2, 1, lastRow - 1, 15).getValues();
+  var tz = ss.getSpreadsheetTimeZone();
   var gerentesLogins = listLogins_().filter(function (l) { return l.papel === "gerente"; });
   var wantId = (gerenteId && gerenteId !== "all") ? String(gerenteId) : null;
 
@@ -285,7 +296,7 @@ function listCorretores_(gerenteId) {
     if (wantId && (!matched || matched.id !== wantId)) return;
 
     out.push({
-      dataCadastro: String(r[0] || ""),
+      dataCadastro: formatDataHora_(r[0], tz),
       nome: String(r[1] || ""),
       creci: String(r[3] || ""),
       creciValidado: String(r[4] || ""),
@@ -296,7 +307,7 @@ function listCorretores_(gerenteId) {
       gerenteEscolhidoTexto: gerenteEscolhidoTexto,
       gerenteId: matched ? matched.id : null,
       gerenteNome: matched ? matched.nome : null,
-      ultimoAcesso: String(r[12] || ""),
+      ultimoAcesso: formatDataHora_(r[12], tz),
       numAcessos: (r[13] === "" || r[13] === null || r[13] === undefined) ? null : Number(r[13])
     });
   });
