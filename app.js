@@ -397,6 +397,20 @@
     return c;
   }
 
+  // só entra no card "<pilar> por projeto" quando um card de pilar está
+  // selecionado — por isso só lista quem tem pelo menos 1 registro (nada de
+  // barra zerada poluindo a lista).
+  function estoqueCounts(entries){
+    var map = {};
+    entries.forEach(function(e){
+      var k = e.estoque || "Sem estoque/lançamento";
+      map[k] = (map[k] || 0) + 1;
+    });
+    var items = Object.keys(map).map(function(k){ return { label: k, value: map[k] }; });
+    items.sort(function(a,b){ return b.value - a.value; });
+    return items;
+  }
+
   function renderNovoRecorrenteBars(container, counts){
     var items = [
       { label: "Primeira vez", value: counts.novo || 0, color: "var(--viz-cat-1)" },
@@ -405,7 +419,7 @@
     renderHBarList(container, items, "Parceiros novos vs. recorrentes", "Sem registros nesse período.");
   }
 
-  function renderRankedBarChart(container, items){
+  function renderRankedBarChart(container, items, ariaLabel){
     container.innerHTML = "";
     if (!items.length){
       var p = document.createElement("p"); p.className = "viz-empty"; p.textContent = "Sem dados para esse filtro.";
@@ -413,7 +427,7 @@
     }
     var max = Math.max.apply(null, items.map(function(i){ return i.value; })) || 1;
     var rowH = 34, barH = 20, labelW = 96, chartW = 380, plotW = chartW - labelW - 46;
-    var svg = svgEl("svg", { viewBox: "0 0 " + chartW + " " + (items.length * rowH), class: "barchart", role: "img", "aria-label": "Volume de registros por gerente" });
+    var svg = svgEl("svg", { viewBox: "0 0 " + chartW + " " + (items.length * rowH), class: "barchart", role: "img", "aria-label": ariaLabel || "Gráfico de barras" });
     items.forEach(function(it, i){
       var cy = i * rowH + rowH / 2;
       var bw = Math.max(2, (it.value / max) * plotW);
@@ -935,10 +949,18 @@
     var prevFiltered = filterEntries(myEntriesRaw, previousPeriodBounds(meState), "");
     $("me-totals-title").textContent = "Totais — " + periodLabel(meState);
     renderMeTotals(filtered, prevFiltered, bounds);
-    var chartEntries = (meState.pilarSel && PILAR_FILTERS[meState.pilarSel]) ? filtered.filter(PILAR_FILTERS[meState.pilarSel].pred) : filtered;
+    var meSel = meState.pilarSel;
+    var chartEntries = (meSel && PILAR_FILTERS[meSel]) ? filtered.filter(PILAR_FILTERS[meSel].pred) : filtered;
     renderPilarBars($("me-pilar-chart"), pilarCounts(chartEntries));
     renderNovoRecorrenteBars($("me-novo-chart"), novoRecorrenteCounts(chartEntries));
     renderTrendChart($("me-trend-chart"), dailyCounts(chartEntries, bounds), "Atividade ao longo do período");
+    if (meSel && PILAR_FILTERS[meSel]){
+      show($("me-estoque-card"));
+      $("me-estoque-title").textContent = PILAR_FILTERS[meSel].label + " por projeto";
+      renderRankedBarChart($("me-estoque-chart"), estoqueCounts(chartEntries), PILAR_FILTERS[meSel].label + " por projeto");
+    } else {
+      hide($("me-estoque-card"));
+    }
 
     var wBounds = weekBounds();
     var w = computeWeek(myEntriesRaw, wBounds);
@@ -1238,9 +1260,16 @@
     var allUnfiltered = [];
     ids.forEach(function(id){ allUnfiltered = allUnfiltered.concat(filterEntries(entriesByGerente[id] || [], bounds, dState.estoque)); });
     var spark = function(pred, colorVar){ return sparklineSVG(dailyCounts(allUnfiltered.filter(pred), bounds).map(function(d){ return d.value; }), colorVar); };
-    var cadAtual = allCorretoresRaw.filter(function(c){ return corretorInBounds_(c, bounds); }).length;
-    var cadAnterior = allCorretoresRaw.filter(function(c){ return corretorInBounds_(c, prevBounds); }).length;
-    var cadSpark = sparklineSVG(corretoresDailyCounts_(allCorretoresRaw, bounds).map(function(d){ return d.value; }), "var(--viz-cat-4)");
+    // Cadastros segue o mesmo filtro de gerentes dos outros cards: com todos
+    // marcados, conta tudo (inclusive quem não tem gerente vinculado); com
+    // uma seleção parcial, conta só quem está vinculado a um gerente marcado.
+    var totalGerentesConhecidos = dState.knownIds ? dState.knownIds.size : 0;
+    var cadList = (ids.length > 0 && ids.length === totalGerentesConhecidos)
+      ? allCorretoresRaw
+      : allCorretoresRaw.filter(function(c){ return ids.indexOf(c.gerenteId) !== -1; });
+    var cadAtual = cadList.filter(function(c){ return corretorInBounds_(c, bounds); }).length;
+    var cadAnterior = cadList.filter(function(c){ return corretorInBounds_(c, prevBounds); }).length;
+    var cadSpark = sparklineSVG(corretoresDailyCounts_(cadList, bounds).map(function(d){ return d.value; }), "var(--viz-cat-4)");
     $("d-kpi").innerHTML =
       statTile(agg.visitas, "Visitas", deltaBadge(agg.visitas, prevAgg.visitas), spark(PILAR_FILTERS.visitas.pred, PILAR_FILTERS.visitas.color), "visitas", sel === "visitas") +
       statTile(agg.treinamentos, "Treinamentos", deltaBadge(agg.treinamentos, prevAgg.treinamentos), spark(PILAR_FILTERS.treinamentos.pred, PILAR_FILTERS.treinamentos.color), "treinamentos", sel === "treinamentos") +
@@ -1256,10 +1285,18 @@
       heroMini(agg.vendas, "Vendas") + heroMini(fmtBRL(ticket), "Ticket médio") + heroMini(fmtBRL(agg.vgvPropostas), "Potencial em propostas")
     );
 
+    if (sel && PILAR_FILTERS[sel]){
+      show($("d-estoque-card"));
+      $("d-estoque-title").textContent = PILAR_FILTERS[sel].label + " por projeto";
+      renderRankedBarChart($("d-estoque-chart"), estoqueCounts(allFiltered), PILAR_FILTERS[sel].label + " por projeto");
+    } else {
+      hide($("d-estoque-card"));
+    }
+
     renderTrendChart($("d-trend-chart"), dailyCounts(allFiltered, bounds), "Atividade do time ao longo do período");
     renderPilarBars($("d-pilar-chart"), pilarCounts(allFiltered));
     renderNovoRecorrenteBars($("d-novo-chart"), novoRecorrenteCounts(allFiltered));
-    renderRankedBarChart($("d-ranked-chart"), ranked);
+    renderRankedBarChart($("d-ranked-chart"), ranked, "Volume de registros por gerente");
     renderGroupedBarChart($("d-grouped-chart"), grouped);
   }
 

@@ -6,13 +6,29 @@ Versão estática (multi-arquivo) do Painel, pronta para hospedar no GitHub Page
 
 ```
 index.html          a página em si (estrutura/HTML)
-css/styles.css       todo o visual (glass, cores da marca Yuny, gráficos)
+css/styles.css       todo o visual — identidade institucional Yuny (creme/dourado/tinta, Satoshi+DM Sans, gráficos)
 js/db-local.js        "banco de dados" temporário, guardado no navegador (localStorage) — modo de teste
 js/db-sheets.js        liga o Painel na planilha Google Sheets via Apps Script — é o que está em uso hoje
 js/app.js              toda a lógica do painel (formulário, gráficos, filtros, VGV...)
 data/config.json      lista de estoques/lançamentos, metas padrão e a conexão com a planilha
+assets/yuny-logo.png   logo da Yuny usada no cabeçalho (extraída do repo do Tabelão comercial)
 Code.gs                código pra colar no Apps Script da planilha (não faz parte do site em si)
 ```
+
+### Identidade visual
+
+O Painel segue a mesma paleta/tipografia usada no site da Yuny, no Portal
+Parcerias e no Tabelão comercial: fundo creme (`#f7f4f0`), tinta quase-preta
+(`#1a1612`) e um único dourado de destaque (`#a07840`/`#86622f`), com cantos
+retos e rótulos em caixa alta. Os tokens de cor ficam todos no topo de
+`css/styles.css` (bloco `:root`) — pra ajustar algo da marca (ex: o tom do
+dourado), basta mexer ali, sem precisar tocar no resto do CSS. As fontes
+(Satoshi para títulos, DM Sans para o corpo) vêm de CDN no `index.html`; se o
+CDN da Satoshi estiver fora do ar, o navegador usa DM Sans automaticamente
+como alternativa — nada quebra.
+
+Hoje o Painel só tem o tema claro institucional (sem alternância escura),
+por ser mais fiel ao material de marca existente.
 
 ## Como o Painel fala com a planilha (Google Sheets)
 
