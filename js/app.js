@@ -670,6 +670,61 @@
     $(endId).addEventListener("change", function(){ state.end = $(endId).value; onChange(); });
   }
 
+  // ---------- "Exportar imagem" — funciona em qualquer aba aberta (gerente ou diretor) ----------
+  function slugArquivo_(s){
+    var r = String(s || "").toLowerCase()
+      .normalize("NFD").replace(/[̀-ͯ]/g, "")
+      .replace(/[^a-z0-9]+/g, "-").replace(/(^-+|-+$)/g, "");
+    return r || "painel";
+  }
+  // acha a <section> visível de dentro de quem estiver logado agora (gerente ou
+  // diretor) e o nome da aba selecionada — exporta sempre "o que está na tela",
+  // não um card fixo, porque o usuário pode estar em qualquer uma das abas.
+  function abaAtivaParaExportar_(){
+    var view = null;
+    if (!$("view-diretor").hidden) view = $("view-diretor");
+    else if (!$("view-gerente").hidden) view = $("view-gerente");
+    if (!view) return null;
+    var secoes = view.querySelectorAll(":scope > section");
+    var ativa = null;
+    secoes.forEach(function(sec){ if (!sec.hidden) ativa = sec; });
+    if (!ativa) return null;
+    var label = "painel";
+    var tabAtiva = view.querySelector('.tabs .tab[aria-selected="true"]');
+    if (tabAtiva && tabAtiva.textContent) label = tabAtiva.textContent.trim();
+    return { section: ativa, label: label };
+  }
+  function exportarAbaComoImagem(){
+    var btn = $("export-img-btn");
+    if (typeof html2canvas !== "function"){
+      toast("Não foi possível carregar a ferramenta de exportação. Verifique sua conexão e tente de novo.");
+      return;
+    }
+    var alvo = abaAtivaParaExportar_();
+    if (!alvo){ toast("Não foi possível identificar o que exportar."); return; }
+    var textoOriginal = btn.textContent;
+    btn.disabled = true; btn.textContent = "Gerando…";
+    var bg = getComputedStyle(document.body).backgroundColor || "#f7f4f0";
+    function restaurarBotao(){ btn.disabled = false; btn.textContent = textoOriginal; }
+    html2canvas(alvo.section, { backgroundColor: bg, scale: 2, useCORS: true }).then(function(canvas){
+      canvas.toBlob(function(blob){
+        if (!blob){ toast("Não foi possível gerar a imagem."); restaurarBotao(); return; }
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement("a");
+        a.href = url;
+        a.download = "painel-parcerias-" + slugArquivo_(alvo.label) + "-" + todayISO() + ".png";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
+        restaurarBotao();
+      }, "image/png");
+    }).catch(function(){
+      toast("Não foi possível gerar a imagem. Tente de novo.");
+      restaurarBotao();
+    });
+  }
+
   function slugify(nome){
     var s = String(nome || "").toLowerCase()
       .normalize("NFD").replace(/[̀-ͯ]/g, "")
@@ -780,7 +835,7 @@
         me = null; enteredAs = null;
         try { sessionStorage.removeItem("painel-me"); } catch(e){}
         hide($("view-login")); hide($("view-gerente")); hide($("view-diretor"));
-        $("role-badge").hidden = true; $("logout-btn").hidden = true;
+        $("role-badge").hidden = true; $("logout-btn").hidden = true; $("export-img-btn").hidden = true;
         show($("view-setup"));
         return;
       }
@@ -793,14 +848,14 @@
       if (!me){
         enteredAs = null;
         hide($("view-setup")); hide($("view-gerente")); hide($("view-diretor"));
-        $("role-badge").hidden = true; $("logout-btn").hidden = true;
+        $("role-badge").hidden = true; $("logout-btn").hidden = true; $("export-img-btn").hidden = true;
         populateLoginSelect();
         show($("view-login"));
         return;
       }
 
       hide($("view-setup")); hide($("view-login"));
-      $("role-badge").hidden = false; $("logout-btn").hidden = false;
+      $("role-badge").hidden = false; $("logout-btn").hidden = false; $("export-img-btn").hidden = false;
 
       if (me.id !== enteredAs){
         enteredAs = me.id;
@@ -945,6 +1000,8 @@
         fallbackCopy();
       }
     });
+
+    $("export-img-btn").addEventListener("click", exportarAbaComoImagem);
   }
 
   // delega o clique/Enter/Espaço nos cards de total (Visitas/Treinamentos/
@@ -976,20 +1033,20 @@
     var ids = Object.keys(logins);
     if (!ids.length){
       hide($("view-login")); hide($("view-gerente")); hide($("view-diretor"));
-      $("role-badge").hidden = true; $("logout-btn").hidden = true;
+      $("role-badge").hidden = true; $("logout-btn").hidden = true; $("export-img-btn").hidden = true;
       show($("view-setup"));
       return;
     }
     if (!me){
       enteredAs = null;
       hide($("view-setup")); hide($("view-gerente")); hide($("view-diretor"));
-      $("role-badge").hidden = true; $("logout-btn").hidden = true;
+      $("role-badge").hidden = true; $("logout-btn").hidden = true; $("export-img-btn").hidden = true;
       populateLoginSelect();
       show($("view-login"));
       return;
     }
     hide($("view-setup")); hide($("view-login"));
-    $("role-badge").hidden = false; $("logout-btn").hidden = false;
+    $("role-badge").hidden = false; $("logout-btn").hidden = false; $("export-img-btn").hidden = false;
     if (me.id !== enteredAs){
       enteredAs = me.id;
       enterApp();
