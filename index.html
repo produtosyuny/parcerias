@@ -38,6 +38,7 @@
         </div>
         <div class="hdr-right">
           <span class="badge" id="role-badge" hidden>—</span>
+          <button class="btn secondary btn-sm" id="export-img-btn" hidden>Exportar imagem</button>
           <button class="btn secondary btn-sm" id="logout-btn" hidden>Sair</button>
         </div>
       </div>
@@ -407,6 +408,9 @@
      quiser voltar a testar sem a planilha, troque esta linha de volta para
      <script src="js/db-local.js"></script>. -->
 <script src="js/db-sheets.js"></script>
+<!-- html2canvas: biblioteca pra tirar "print" da tela em código, usada só pelo
+     botão "Exportar imagem" (ver exportarAbaComoImagem em js/app.js). -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>
