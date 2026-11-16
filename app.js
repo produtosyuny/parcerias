@@ -31,6 +31,7 @@
   var dCorretoresFiltro = "";   // "" = todos | "__sem__" = não vinculados | id do gerente
   var meState = { periodo: "semana", start: null, end: null, pilarSel: null };
   var dState = { periodo: "semana", start: null, end: null, estoque: "", selected: null, knownIds: null, pilarSel: null };
+  var rState = { periodo: "semana", start: null, end: null }; // aba "Resumo" — sempre time todo, sem filtro de gerente/estoque
 
   function $(id){ return document.getElementById(id); }
   function show(el){ el.hidden = false; }
@@ -509,6 +510,150 @@
     container.appendChild(legend);
   }
 
+  // ---------- aba "Resumo" ----------
+  // Textos prontos por pilar, pra montar as frases de alerta sem precisar
+  // conjugar substantivo/plural na hora (evita "muito vendas" etc.).
+  var PILAR_ALERTA_TXT = {
+    visitas: { alto: "muitas visitas", zero: "nenhuma visita" },
+    treinamentos: { alto: "muitos treinamentos", zero: "nenhum treinamento" },
+    propostas: { alto: "muitas propostas", zero: "nenhuma proposta" },
+    vendas: { alto: "muitas vendas", zero: "nenhuma venda" }
+  };
+  var PILARES_ORDEM = ["visitas", "treinamentos", "propostas", "vendas"];
+
+  // Tudo aqui sai direto da contagem dos 4 pilares — nada de texto digitado à
+  // mão. Sempre considera TODOS os gerentes (não usa dState.selected nem
+  // filtro de estoque), porque o resumo é pra visão do time inteiro.
+  function computeResumo(){
+    var bounds = periodBounds(rState);
+    var prevBounds = previousPeriodBounds(rState);
+    var ids = Object.keys(logins).filter(function(id){ return logins[id].papel === "gerente"; });
+
+    var perGerente = [], allEntries = [], allEntriesPrev = [];
+    ids.forEach(function(id){
+      var filtered = filterEntries(entriesByGerente[id] || [], bounds, "");
+      var t = computeTotals(filtered);
+      perGerente.push({
+        id: id, nome: (logins[id] || {}).nome || id,
+        visitas: t.visitas, treinamentos: t.treinamentos, propostas: t.propostas, vendas: t.vendas,
+        vgvPropostas: t.vgvPropostas, volume: t.visitas + t.treinamentos
+      });
+      allEntries = allEntries.concat(filtered);
+      allEntriesPrev = allEntriesPrev.concat(filterEntries(entriesByGerente[id] || [], prevBounds, ""));
+    });
+
+    var totals = computeTotals(allEntries);
+    var totalsPrev = computeTotals(allEntriesPrev);
+    var produtoRank = estoqueCounts(allEntries); // já ordenado, maior primeiro
+
+    var n = perGerente.length || 1;
+    var media = { volume: 0 };
+    PILARES_ORDEM.forEach(function(p){
+      media[p] = perGerente.reduce(function(s, g){ return s + g[p]; }, 0) / n;
+    });
+    media.volume = perGerente.reduce(function(s, g){ return s + g.volume; }, 0) / n;
+
+    // campeões — só conta se tiver pelo menos 1 registro naquele pilar
+    function campeao(pilar){
+      var ranked = perGerente.filter(function(g){ return g[pilar] > 0; })
+        .sort(function(a,b){ return b[pilar] - a[pilar]; });
+      return ranked[0] || null;
+    }
+    var campeaoVisitas = campeao("visitas");
+    var campeaoTreino = campeao("treinamentos");
+
+    // alertas — no máx. 1 por gerente, pra não virar lista de reclamação
+    var alertas = [];
+    perGerente.forEach(function(g){
+      // regra 1: muita atividade (visita+treinamento) mas zero proposta
+      if (media.volume > 0 && g.volume > media.volume && g.propostas === 0){
+        alertas.push({ gerente: g.nome, texto: "Tem muita atividade (visitas e treinamentos), mas " + PILAR_ALERTA_TXT.propostas.zero + " no período." });
+        return;
+      }
+      // regra 2: pilar zerado enquanto outro pilar dele está acima da média do time
+      for (var i = 0; i < PILARES_ORDEM.length; i++){
+        var p = PILARES_ORDEM[i];
+        if (g[p] > 0) continue;
+        if (media[p] === 0) continue; // ninguém do time teve esse pilar — não é uma falha específica desse gerente
+        var melhorOutro = null;
+        for (var j = 0; j < PILARES_ORDEM.length; j++){
+          var q = PILARES_ORDEM[j];
+          if (q === p) continue;
+          if (media[q] > 0 && g[q] > media[q]){
+            if (!melhorOutro || g[q] > melhorOutro.valor) melhorOutro = { key: q, valor: g[q] };
+          }
+        }
+        if (melhorOutro){
+          alertas.push({ gerente: g.nome, texto: "Tem " + PILAR_ALERTA_TXT[melhorOutro.key].alto + ", mas " + PILAR_ALERTA_TXT[p].zero + "." });
+          break;
+        }
+      }
+    });
+
+    return {
+      bounds: bounds, totals: totals, totalsPrev: totalsPrev,
+      produtoDestaque: produtoRank[0] || null,
+      campeaoVisitas: campeaoVisitas, campeaoTreino: campeaoTreino,
+      alertas: alertas, temGerentes: ids.length > 0
+    };
+  }
+
+  function destaqueTileHTML(valueText, label, subText, emptyMsg){
+    var n = (valueText == null) ? '<div class="n n-empty">' + renderEscaped(emptyMsg || "Sem dados") + '</div>' : '<div class="n">' + renderEscaped(valueText) + '</div>';
+    return '<div class="stat destaque">' + n + '<div class="l">' + renderEscaped(label) + '</div>' + (subText ? '<div class="sub">' + renderEscaped(subText) + '</div>' : '') + '</div>';
+  }
+
+  function buildResumoText(r){
+    var b = r.bounds;
+    var linhas = [];
+    linhas.push("Resumo do período (" + fmtRange(b) + ")");
+    linhas.push("");
+    linhas.push("Produto destaque: " + (r.produtoDestaque ? r.produtoDestaque.label + " (" + r.produtoDestaque.value + " atividades)" : "sem registros no período"));
+    linhas.push("Campeão de visitas: " + (r.campeaoVisitas ? r.campeaoVisitas.nome + " (" + r.campeaoVisitas.visitas + " visitas)" : "nenhuma visita registrada"));
+    linhas.push("Mais treinamento: " + (r.campeaoTreino ? r.campeaoTreino.nome + " (" + r.campeaoTreino.treinamentos + " treinamentos)" : "nenhum treinamento registrado"));
+    linhas.push("Propostas no período: " + r.totals.propostas + " (" + fmtBRL(r.totals.vgvPropostas) + ")" + deltaTextoSimples_(r.totals.propostas, r.totalsPrev.propostas));
+    linhas.push("");
+    if (r.alertas.length){
+      linhas.push("Alertas:");
+      r.alertas.forEach(function(a){ linhas.push("- " + a.gerente + ": " + a.texto); });
+    } else {
+      linhas.push("Alertas: nenhum — time equilibrado nos 4 pilares no período.");
+    }
+    return linhas.join("\n");
+  }
+  // versão em texto puro do deltaBadge (sem HTML), pra entrar no bloco de copiar
+  function deltaTextoSimples_(curr, prev){
+    if (!prev && !curr) return "";
+    if (!prev) return " (novo no período)";
+    var pct = Math.round(((curr - prev) / prev) * 100);
+    if (pct === 0) return " (estável vs. período anterior)";
+    return " (" + (pct > 0 ? "▲" : "▼") + " " + Math.abs(pct) + "% vs. período anterior)";
+  }
+
+  function renderResumoExecutivo(){
+    if (!me || me.papel !== "diretor") return;
+    var r = computeResumo();
+    $("r-destaques-title").textContent = "Destaques — " + periodLabel(rState);
+
+    $("r-destaques").innerHTML =
+      destaqueTileHTML(r.produtoDestaque ? r.produtoDestaque.label : null, "Produto destaque", r.produtoDestaque ? r.produtoDestaque.value + " atividades no período" : "", "Sem registros no período") +
+      destaqueTileHTML(r.campeaoVisitas ? r.campeaoVisitas.nome : null, "Campeão de visitas", r.campeaoVisitas ? r.campeaoVisitas.visitas + " visitas" : "", "Nenhuma visita registrada") +
+      destaqueTileHTML(r.campeaoTreino ? r.campeaoTreino.nome : null, "Mais treinamento", r.campeaoTreino ? r.campeaoTreino.treinamentos + " treinamentos" : "", "Nenhum treinamento registrado") +
+      destaqueTileHTML(String(r.totals.propostas), "Propostas no período", fmtBRL(r.totals.vgvPropostas) + " em potencial" + deltaTextoSimples_(r.totals.propostas, r.totalsPrev.propostas));
+
+    if (!r.temGerentes){
+      $("r-alertas").innerHTML = '<p class="empty">Ainda não há gerentes cadastrados.</p>';
+    } else if (r.alertas.length){
+      $("r-alertas").innerHTML = r.alertas.map(function(a){
+        return '<div class="alert-row"><strong>' + renderEscaped(a.gerente) + '</strong> — ' + renderEscaped(a.texto) + '</div>';
+      }).join("");
+    } else {
+      $("r-alertas").innerHTML = '<div class="alert-row ok">Nenhum alerta neste período — time equilibrado nos 4 pilares.</div>';
+    }
+
+    $("r-text-preview").textContent = buildResumoText(r);
+  }
+
   function wirePeriodPills(containerId, customRangeId, state, onChange){
     var group = $(containerId);
     group.querySelectorAll(".pill-btn").forEach(function(btn){
@@ -781,6 +926,25 @@
 
     wirePilarFilterTiles("me-totals", meState, renderMeAll);
     wirePilarFilterTiles("d-kpi", dState, renderDiretorDashboard);
+
+    wirePeriodPills("r-period-pills", "r-custom-range", rState, renderResumoExecutivo);
+    wireCustomRange("r-start", "r-end", rState, renderResumoExecutivo);
+    $("r-copy-btn").addEventListener("click", function(){
+      var texto = $("r-text-preview").textContent;
+      function okToast(){ toast("Texto copiado."); }
+      function fallbackCopy(){
+        var ta = document.createElement("textarea");
+        ta.value = texto; ta.setAttribute("readonly", ""); ta.style.position = "fixed"; ta.style.opacity = "0";
+        document.body.appendChild(ta); ta.select();
+        try { document.execCommand("copy"); okToast(); } catch(e){ toast("Não foi possível copiar. Selecione o texto manualmente."); }
+        document.body.removeChild(ta);
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(texto).then(okToast).catch(fallbackCopy);
+      } else {
+        fallbackCopy();
+      }
+    });
   }
 
   // delega o clique/Enter/Espaço nos cards de total (Visitas/Treinamentos/
@@ -1173,6 +1337,7 @@
       unsubEntries[id] = db.collection("registros/" + id + "/entries").onSnapshot(function(esnap){
         entriesByGerente[id] = esnap.docs.map(function(d){ return d.data(); });
         renderDiretorDashboard();
+        renderResumoExecutivo();
         renderTeamLog();
       });
     });
@@ -1185,6 +1350,7 @@
     });
     renderGerenteChips();
     renderDiretorDashboard();
+    renderResumoExecutivo();
     renderTeamLog();
   }
 

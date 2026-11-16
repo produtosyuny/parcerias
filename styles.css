@@ -153,6 +153,25 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .pilar-filter-note:empty{display:none}
 .pilar-filter-note b{color:var(--accent-2)}
 
+/* aba "Resumo" — destaques calculados, sem filtro clicável (não são .stat[data-pilar]) */
+.stat.destaque{border-top-color:var(--accent)}
+.stat .sub{font-size:12px; color:var(--muted); margin-top:5px; line-height:1.4}
+.stat .n.n-empty{font-size:16px; color:var(--muted); font-family:var(--corpo)}
+
+.alert-row{
+  padding:10px 12px; margin-bottom:8px; border-left:3px solid var(--red); background:var(--red-soft);
+  font-size:13px; line-height:1.5;
+}
+.alert-row:last-child{margin-bottom:0}
+.alert-row strong{color:var(--ink)}
+.alert-row.ok{border-left-color:var(--green); background:var(--green-soft)}
+
+.resumo-text{
+  font-family:var(--corpo); font-size:13px; line-height:1.6; color:var(--ink);
+  background:var(--bg); border:1px solid var(--line); padding:14px; margin:10px 0 0;
+  white-space:pre-wrap; word-break:break-word; max-height:360px; overflow-y:auto;
+}
+
 /* KPI em destaque (VGV) */
 .hero-kpi{display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:20px}
 .hero-kpi .hk-main{min-width:0}

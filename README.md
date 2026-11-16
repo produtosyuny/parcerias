@@ -30,6 +30,29 @@ como alternativa — nada quebra.
 Hoje o Painel só tem o tema claro institucional (sem alternância escura),
 por ser mais fiel ao material de marca existente.
 
+### Aba "Resumo" (visão do Diretor)
+
+Pensada pra responder rápido o que normalmente é perguntado por quem está
+acima do Diretor de Parcerias: qual produto se destacou, qual gerente liderou
+visitas, qual liderou treinamento, como estão as propostas, e quem precisa de
+atenção. Tudo calculado direto dos registros do período (sempre o time
+inteiro, sem filtro de gerente/estoque) — nenhum número é digitado à mão.
+
+Os alertas por gerente disparam em duas situações, sempre comparando com a
+média do próprio time no período:
+
+1. O gerente teve bastante atividade (visitas + treinamentos acima da média),
+   mas nenhuma proposta saiu ainda.
+2. Um pilar dele está zerado enquanto outro pilar dele está acima da média do
+   time (ex.: muita visita, nenhum treinamento). Se ninguém do time teve
+   aquele pilar no período, não conta como falha de um gerente específico —
+   só dispara quando é algo que os colegas estão fazendo e ele não.
+
+No fim da aba tem um bloco de texto pronto (com botão "Copiar texto") já no
+formato de mensagem, pra colar direto numa conversa — a mesma ideia de
+mandar o resumo da semana por WhatsApp, só que sem precisar montar nada na
+mão toda vez.
+
 ## Como o Painel fala com a planilha (Google Sheets)
 
 O Painel hoje guarda tudo na planilha **registro_parcerias** do Google Drive, através de
