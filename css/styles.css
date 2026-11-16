@@ -97,6 +97,13 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 }
 .hdr-sub{font-size:14px; color:var(--ink); margin-top:3px; font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 .hdr-right{display:flex; align-items:center; gap:10px; flex-shrink:0}
+/* com 3 itens (selo + Exportar imagem + Sair), a linha do cabeçalho não cabe
+   mais numa tela de celular estreita — quebra pro selo+botões irem pra uma
+   segunda linha em vez de sobrepor o nome "Parcerias". */
+@media (max-width:460px){
+  .hdr-row{flex-wrap:wrap; row-gap:10px}
+  .hdr-right{width:100%; justify-content:flex-end}
+}
 .badge{
   font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:.14em;
   color:var(--accent-ink); background:var(--ink); padding:6px 11px;
