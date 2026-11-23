@@ -1,0 +1,359 @@
+/* Minimal page reset — on claude.ai this was supplied automatically by the
+   Artifact tool's page skeleton; standalone (GitHub Pages) we provide the
+   same few rules ourselves so the layout behaves identically. */
+:root{ color-scheme: light; }
+img{ max-width: 100%; }
+
+/* ---------------------------------------------------------------------
+   Identidade institucional Yuny — mesma paleta/tipografia usada no site
+   (yuny.com.br), no Portal Parcerias e no Tabelão comercial: creme quente,
+   tinta quase-preta e um único dourado de destaque. Cantos retos, rótulos
+   em caixa alta com tracking, números grandes em peso leve. Um só tema
+   (claro) — por pedido do Rogerio, sem alternância escura. */
+:root{
+  --bg:#f7f4f0; --bg-solid:#f7f4f0;
+  --card:#fffdfa; --card-border:#e2d9cc;
+  --card-shadow:none;
+  --accent:#a07840; --accent-2:#86622f; --accent-ink:#f7f4f0; --accent-soft:#eadcc6;
+  --ink:#1a1612; --ink-2:#4a433c; --muted:#6f6659; --line:#e2d9cc;
+  --red:#a8402c; --yellow:#86622f; --green:#176b43;
+  --red-soft:rgba(168,64,44,.12); --green-soft:rgba(31,143,90,.12);
+  --viz-grid:#e8e1d6; --viz-axis:#c9bfae;
+  --viz-cat-1:#2060a0; --viz-cat-2:#b5571f; --viz-cat-3:#1f8f5a; --viz-cat-4:#8a3d85;
+  --corpo:"DM Sans", system-ui, Arial, sans-serif;
+  --titulo:"Satoshi","DM Sans", system-ui, Arial, sans-serif;
+}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--bg-solid); color:var(--ink); position:relative;
+  font-family:var(--corpo); font-size:15px; line-height:1.5;
+  padding-left:max(16px, env(safe-area-inset-left,0px));
+  padding-right:max(16px, env(safe-area-inset-right,0px));
+}
+.wrap{max-width:720px; margin:0 auto; padding-bottom:48px; position:relative}
+a{color:var(--accent-2)}
+h1,h2,h3{text-wrap:balance; margin:0; font-family:var(--titulo)}
+::placeholder{color:var(--muted)}
+
+/* desktop: wider canvas, charts laid out side by side like uma mesa de BI */
+@media (min-width:720px){
+  .wrap{max-width:900px}
+}
+@media (min-width:1000px){
+  .wrap{max-width:1180px}
+  .grid-2{display:grid; grid-template-columns:1fr 1fr; gap:16px; align-items:start}
+  .grid-2 > .card{margin-bottom:0}
+  .hdr-title{font-size:10px}
+
+  /* a barra de abas vira uma coluna lateral fixa, com o bloco de perfil em cima */
+  #view-gerente, #view-diretor{display:flex; align-items:flex-start; gap:28px}
+  #view-gerente > .tabs, #view-diretor > .tabs{
+    flex:0 0 212px; flex-direction:column; align-items:stretch; margin:0; gap:1px; overflow-x:visible;
+    position:sticky; top:calc(env(safe-area-inset-top,0px) + 86px);
+    background:var(--card); border:1px solid var(--card-border);
+    padding:8px;
+  }
+  #view-gerente > .tabs .tab, #view-diretor > .tabs .tab{
+    width:100%; text-align:left; background:transparent; border:0; border-left:2px solid transparent;
+    padding:12px 14px;
+  }
+  #view-gerente > .tabs .tab:not([aria-selected="true"]):hover, #view-diretor > .tabs .tab:not([aria-selected="true"]):hover{
+    background:var(--bg); color:var(--ink);
+  }
+  #view-gerente > .tabs .tab[aria-selected="true"], #view-diretor > .tabs .tab[aria-selected="true"]{
+    background:var(--bg); border-left-color:var(--accent);
+  }
+  #view-gerente > section, #view-diretor > section{flex:1; min-width:0}
+  .side-profile{
+    display:flex; flex-direction:column; align-items:center; text-align:center; gap:8px;
+    padding:18px 10px 18px; margin-bottom:6px; border-bottom:1px solid var(--line);
+  }
+  .side-avatar{
+    width:46px; height:46px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    font-family:var(--titulo); font-size:16px; font-weight:500; color:var(--accent-ink); flex-shrink:0;
+    background:var(--ink);
+  }
+  .side-name{font-size:14px; font-weight:600; line-height:1.25}
+  .side-role{font-size:10px; color:var(--accent-2); text-transform:uppercase; letter-spacing:.16em; font-weight:600}
+}
+.side-profile{display:none}
+
+/* header / marca */
+.hdr{
+  position:sticky; top:env(safe-area-inset-top,0px); z-index:10;
+  background:color-mix(in srgb, var(--bg-solid) 94%, transparent);
+  backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+  padding-block:16px 12px; margin:0 -16px; padding-inline:16px;
+  border-bottom:1px solid var(--line);
+}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg-solid)}
+.hdr-row{display:flex; align-items:center; justify-content:space-between; gap:12px}
+.brand{display:flex; align-items:center; gap:14px; min-width:0}
+.brand-logo{height:22px; width:auto; display:block; flex-shrink:0}
+.brand-text{border-left:1px solid var(--line); padding-left:14px; min-width:0}
+.hdr-title{
+  font-size:10px; line-height:14px; font-weight:600; letter-spacing:.2em; text-transform:uppercase;
+  color:var(--accent-2); font-family:var(--corpo);
+}
+.hdr-sub{font-size:14px; color:var(--ink); margin-top:3px; font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.hdr-right{display:flex; align-items:center; gap:10px; flex-shrink:0}
+/* com 3 itens (selo + Exportar imagem + Sair), a linha do cabeçalho não cabe
+   mais numa tela de celular estreita — quebra pro selo+botões irem pra uma
+   segunda linha em vez de sobrepor o nome "Parcerias". */
+@media (max-width:460px){
+  .hdr-row{flex-wrap:wrap; row-gap:10px}
+  .hdr-right{width:100%; justify-content:flex-end}
+}
+.badge{
+  font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:.14em;
+  color:var(--accent-ink); background:var(--ink); padding:6px 11px;
+  white-space:nowrap;
+}
+.btn-sm{padding:0 14px!important; min-height:38px!important; font-size:11px!important; margin:0!important}
+
+/* abas */
+.tabs{display:flex; gap:4px; margin:16px 0 18px; overflow-x:auto}
+.tab{
+  font:inherit; font-size:11px; font-weight:600; color:var(--ink-2);
+  letter-spacing:.1em; text-transform:uppercase;
+  background:transparent; border:0; border-bottom:2px solid transparent;
+  padding:11px 12px; cursor:pointer; white-space:nowrap; transition:.15s ease;
+}
+.tab:hover{color:var(--ink)}
+.tab[aria-selected="true"]{
+  color:var(--accent-2); border-bottom-color:var(--accent);
+}
+
+/* cartões */
+.card{
+  background:var(--card); border:1px solid var(--card-border);
+  padding:22px; margin-bottom:16px;
+}
+.card h2{font-size:15px; font-weight:600; color:var(--ink); letter-spacing:0; margin-bottom:16px; padding-bottom:14px; border-bottom:1px solid var(--line)}
+.card p.hint{font-size:13px; color:var(--muted); margin:4px 0 0; line-height:1.5}
+
+/* grade de estatísticas */
+.stat-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:10px}
+.stat{
+  padding:16px; min-width:0; background:var(--card);
+  border:1px solid var(--line); border-top:2px solid var(--viz-cat-1);
+}
+.stat[data-pilar="treinamentos"]{border-top-color:var(--viz-cat-2)}
+.stat[data-pilar="propostas"],.stat[data-pilar="vendas"]{border-top-color:var(--viz-cat-3)}
+.stat.stat-cadastros{border-top-color:var(--viz-cat-4)}
+.stat[data-pilar]{
+  cursor:pointer; transition:.15s ease; text-align:left; -webkit-tap-highlight-color:transparent;
+}
+.stat[data-pilar]:hover{background:var(--bg)}
+.stat[data-pilar]:focus-visible{outline:none; box-shadow:inset 0 0 0 2px var(--accent)}
+.stat[data-pilar].is-selected{
+  background:var(--accent-soft); box-shadow:inset 0 0 0 2px var(--accent);
+}
+.stat .n{font-family:var(--titulo); font-size:30px; font-weight:400; font-variant-numeric:tabular-nums; line-height:1.1; color:var(--ink)}
+.stat .l{font-size:10px; font-weight:600; letter-spacing:.14em; text-transform:uppercase; color:var(--accent-2); margin-top:7px}
+.stat .d{display:inline-flex; align-items:center; gap:3px; font-size:11px; font-weight:600; margin-top:9px; padding:3px 7px; font-variant-numeric:tabular-nums}
+.stat .d.up{color:var(--green); background:var(--green-soft)}
+.stat .d.down{color:var(--red); background:var(--red-soft)}
+.stat .d.flat{color:var(--muted); background:var(--bg)}
+.stat .spark{display:block; width:100%; height:28px; margin-top:10px}
+.pilar-filter-note{min-height:1px}
+.pilar-filter-note:empty{display:none}
+.pilar-filter-note b{color:var(--accent-2)}
+
+/* aba "Resumo" — destaques calculados, sem filtro clicável (não são .stat[data-pilar]) */
+.stat.destaque{border-top-color:var(--accent)}
+.stat .sub{font-size:12px; color:var(--muted); margin-top:5px; line-height:1.4}
+.stat .n.n-empty{font-size:16px; color:var(--muted); font-family:var(--corpo)}
+
+.alert-row{
+  padding:10px 12px; margin-bottom:8px; border-left:3px solid var(--red); background:var(--red-soft);
+  font-size:13px; line-height:1.5;
+}
+.alert-row:last-child{margin-bottom:0}
+.alert-row strong{color:var(--ink)}
+.alert-row.ok{border-left-color:var(--green); background:var(--green-soft)}
+
+.resumo-text{
+  font-family:var(--corpo); font-size:13px; line-height:1.6; color:var(--ink);
+  background:var(--bg); border:1px solid var(--line); padding:14px; margin:10px 0 0;
+  white-space:pre-wrap; word-break:break-word; max-height:360px; overflow-y:auto;
+}
+
+/* aba "Produtos" — tabela "produto × 4 pilares" (substitui o relatório que
+   era preenchido à mão por produto/lançamento) */
+.table-wrap{overflow-x:auto; position:relative}
+/* sombra no canto direito só quando a tabela realmente não cabe na largura —
+   evitar o usuário parar antes de ver Propostas/Vendas no celular sem saber
+   que dá pra arrastar. ".has-overflow" é alternada via JS depois de montar
+   a tabela (ver renderProdutosTable). */
+.table-wrap.has-overflow::after{
+  content:""; position:absolute; top:0; right:0; bottom:0; width:28px;
+  background:linear-gradient(to right, transparent, var(--card) 65%);
+  pointer-events:none;
+}
+.prod-table{width:100%; border-collapse:collapse; font-size:13.5px}
+.prod-table th, .prod-table td{padding:10px 12px; text-align:right; white-space:nowrap}
+.prod-table th:first-child, .prod-table td:first-child{text-align:left; white-space:normal}
+.prod-table thead th{
+  font-family:var(--corpo); font-size:11px; font-weight:600; letter-spacing:.08em;
+  text-transform:uppercase; color:var(--muted); border-bottom:2px solid var(--line);
+}
+.prod-table tbody td{border-bottom:1px solid var(--line); font-variant-numeric:tabular-nums}
+.prod-table tbody tr:last-child td{border-bottom:none}
+.prod-table tbody tr.is-total td{font-weight:700; border-top:2px solid var(--line); border-bottom:none}
+.prod-table td.produto-nome{font-family:var(--titulo); color:var(--ink)}
+.prod-table td.zero{color:var(--muted)}
+
+/* aba "Individual" — funil de conversão de um gerente só */
+.funil-row{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+.funil-stage{flex:1 1 140px; min-width:140px}
+.funil-pct{
+  flex:0 0 auto; text-align:center; min-width:64px; font-family:var(--titulo);
+  font-size:15px; font-weight:500; color:var(--accent-2);
+}
+.funil-pct .fp-label{display:block; font-size:10px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin-top:2px; font-family:var(--corpo)}
+@media (max-width:540px){
+  .funil-row{flex-direction:column; align-items:stretch}
+  .funil-pct{padding:2px 0}
+}
+#i-funil-lista:not(:empty){margin-top:14px; padding-top:14px; border-top:1px solid var(--line)}
+.funil-lista-titulo{font-family:var(--corpo); font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin-bottom:6px}
+
+/* KPI em destaque (VGV) */
+.hero-kpi{display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:20px}
+.hero-kpi .hk-main{min-width:0}
+.hero-kpi .hk-value{
+  font-family:var(--titulo); font-size:42px; font-weight:400; letter-spacing:-.01em; line-height:1.1;
+  font-variant-numeric:tabular-nums; color:var(--ink);
+}
+.hero-kpi .hk-delta{margin-top:10px}
+.hero-kpi .hk-side{display:flex; gap:0; flex-wrap:wrap}
+.hero-kpi .hk-mini{min-width:92px; padding:0 20px; border-left:1px solid var(--line)}
+.hero-kpi .hk-mini:first-child{border-left:0; padding-left:0}
+.hero-kpi .hk-mini-n{font-family:var(--titulo); font-size:21px; font-weight:400; font-variant-numeric:tabular-nums; color:var(--ink)}
+.hero-kpi .hk-mini-l{font-size:10px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:var(--accent-2); margin-top:4px}
+@media (max-width:719px){ .hero-kpi .hk-value{font-size:34px} }
+
+/* selos */
+.pill{display:inline-flex; align-items:center; gap:5px; font-size:10px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; padding:4px 9px}
+.pill.ok{background:var(--green-soft); color:var(--green)}
+.pill.low{background:var(--red-soft); color:var(--red)}
+
+/* formulário */
+label{display:block; font-size:10px; font-weight:600; letter-spacing:.14em; text-transform:uppercase; color:var(--accent-2); margin:18px 0 7px}
+label:first-of-type{margin-top:0}
+input,select,textarea{
+  width:100%; font:inherit; font-size:15px; color:var(--ink);
+  background:transparent;
+  border:0; border-bottom:1px solid var(--line); border-radius:0; padding:11px 2px;
+  transition:.15s ease;
+}
+select{background:transparent}
+textarea{border:1px solid var(--line); padding:10px 12px; resize:vertical; min-height:64px}
+input:focus,select:focus,textarea:focus{outline:none; border-color:var(--accent)}
+.btn{
+  font:inherit; font-size:11px; font-weight:600; letter-spacing:.16em; text-transform:uppercase; color:var(--accent-ink);
+  background:var(--accent-2);
+  border:none; border-radius:0; min-height:48px; padding:0 20px; cursor:pointer; width:100%; margin-top:18px;
+  transition:.15s ease;
+}
+.btn:hover{background:var(--ink)}
+.btn:active{filter:brightness(.95)}
+.btn:disabled{opacity:.45; cursor:default}
+.btn.secondary{
+  background:transparent; color:var(--ink); box-shadow:inset 0 0 0 1px var(--ink);
+  width:auto; margin:0;
+}
+.btn.secondary:hover{background:var(--ink); color:var(--accent-ink)}
+.row2{display:grid; grid-template-columns:1fr 1fr; gap:12px; min-width:0; align-items:end}
+.row2 > input{margin:0}
+.row2 > div{min-width:0}
+.toast{
+  position:fixed; left:50%; bottom:24px; transform:translateX(-50%);
+  background:var(--ink); color:var(--bg-solid); font-size:11px; font-weight:600; letter-spacing:.1em; text-transform:uppercase;
+  padding:12px 20px; box-shadow:0 10px 28px rgba(26,22,18,.28);
+  opacity:0; transition:opacity .2s; pointer-events:none; z-index:20; max-width:90%; text-align:center;
+}
+.toast.show{opacity:1}
+
+/* roster / linhas de histórico */
+.roster-item{border:1px solid var(--line); padding:16px; margin-bottom:10px; background:var(--card)}
+.roster-item summary{cursor:pointer; display:flex; align-items:center; justify-content:space-between; list-style:none; font-weight:600}
+.roster-item summary::-webkit-details-marker{display:none}
+.roster-item summary::after{content:"+"; color:var(--accent-2); font-size:15px; font-weight:400}
+.roster-item[open] summary::after{content:"–"}
+.mini-grid{display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin-top:14px}
+.mini-grid .s{font-size:10px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:var(--muted)}
+.mini-grid .v{font-family:var(--titulo); font-size:18px; font-weight:400; font-variant-numeric:tabular-nums; margin-top:2px}
+
+.log-row{display:flex; gap:12px; padding:11px 0; border-bottom:1px solid var(--line); font-size:13px}
+.log-row:last-child{border-bottom:none}
+.log-row .d{color:var(--muted); min-width:72px; font-variant-numeric:tabular-nums}
+.log-row .t{flex:1; min-width:0}
+.log-row .who{color:var(--accent-2); font-weight:600}
+.empty{color:var(--muted); font-size:14px; text-align:center; padding:24px 0}
+
+/* corretores (cadastro do Portal Parcerias) */
+.corretor-list{display:flex; flex-direction:column; gap:10px}
+.corretor-card{
+  border:1px solid var(--line); padding:16px;
+  background:var(--card);
+}
+.cc-head{display:flex; align-items:flex-start; justify-content:space-between; gap:10px}
+.cc-nome{font-weight:600; font-size:15px; min-width:0}
+.cc-meta{font-size:12px; color:var(--muted); margin-top:5px; text-transform:uppercase; letter-spacing:.06em}
+.cc-contact{font-size:13px; margin-top:10px; display:flex; flex-wrap:wrap; gap:4px 14px}
+.cc-contact a{color:var(--accent-2); text-decoration:none; font-weight:600}
+.cc-contact a:hover{text-decoration:underline}
+.cc-gerente{font-size:12px; color:var(--muted); margin-top:10px}
+.cc-gerente-missing{color:var(--red); font-weight:600}
+.cc-foot{font-size:11px; color:var(--muted); margin-top:9px; opacity:.85}
+
+/* filtros */
+.filters-row{display:flex; flex-direction:column; gap:14px}
+.pill-row{display:flex; gap:6px; flex-wrap:wrap}
+.pill-btn{
+  font:inherit; font-size:11px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-2);
+  background:transparent;
+  border:1px solid var(--line); border-radius:0; padding:9px 15px; cursor:pointer; transition:.15s ease;
+}
+.pill-btn:hover{border-color:var(--ink)}
+.pill-btn[aria-pressed="true"]{
+  color:var(--accent-ink); background:var(--accent-2);
+  border-color:var(--accent-2);
+}
+.chip-multi{
+  font:inherit; font-size:11px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-2);
+  background:transparent;
+  border:1px solid var(--line); border-radius:0; padding:9px 15px; cursor:pointer; transition:.15s ease;
+}
+.chip-multi:hover{border-color:var(--ink)}
+.chip-multi[aria-pressed="true"]{color:var(--accent-2); background:var(--accent-soft); border-color:var(--accent)}
+.filters-label{font-size:10px; font-weight:600; color:var(--accent-2); text-transform:uppercase; letter-spacing:.14em; margin-bottom:8px}
+.custom-range{display:none; gap:10px}
+.custom-range.show{display:grid; grid-template-columns:1fr 1fr}
+
+/* gráficos */
+.viz-card{position:relative}
+.barchart{width:100%; height:auto; display:block; overflow:visible}
+.barchart .bar{fill:var(--viz-cat-1); cursor:pointer}
+.barchart .bar:hover, .barchart .bar.hov{filter:brightness(1.08)}
+.barchart text{font-family:var(--corpo); fill:var(--muted)}
+.barchart .val-label{fill:var(--ink-2); font-weight:600}
+.barchart .grid-line{stroke:var(--viz-grid); stroke-width:1}
+.legend-row{display:flex; flex-wrap:wrap; gap:16px; margin-top:12px}
+.legend-item{display:flex; align-items:center; gap:7px; font-size:12px; color:var(--ink-2)}
+.legend-swatch{width:9px; height:9px; border-radius:0; flex-shrink:0}
+.viz-tooltip{
+  position:fixed; pointer-events:none; z-index:30; background:var(--ink); color:var(--bg-solid);
+  font-size:12.5px; line-height:1.4; padding:9px 11px; box-shadow:0 10px 24px rgba(26,22,18,.28);
+  opacity:0; transition:opacity .12s; max-width:220px;
+}
+.viz-tooltip.show{opacity:1}
+.viz-tooltip b{display:block; font-size:13px; font-weight:600}
+.viz-empty{color:var(--muted); font-size:14px; text-align:center; padding:28px 0}
+
+.center-card{max-width:420px; margin:60px auto 0; text-align:center}
+.center-card h1{font-size:18px; margin-bottom:10px; font-weight:500}
+.center-card p{color:var(--muted); font-size:14px; line-height:1.5}
+[hidden]{display:none!important}

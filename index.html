@@ -1,0 +1,507 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Painel de Parcerias</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap">
+<!-- Satoshi (títulos) vem do CDN oficial da fonte, com DM Sans como alternativa
+     automática caso o CDN não carregue — ver var(--titulo) em css/styles.css. -->
+<link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700&display=swap">
+<link rel="stylesheet" href="css/styles.css?v=20261123b">
+</head>
+<body>
+
+<div class="wrap">
+
+  <div id="boot" class="center-card card" style="margin-top:80px">
+    <h1>Carregando…</h1>
+    <p>Conectando ao painel de Parcerias.</p>
+  </div>
+
+  <div id="noaccess" class="center-card card" hidden>
+    <h1>Sem acesso a esta página</h1>
+    <p>Abra este link pela sua conta Claude. Se ainda não tiver acesso, peça ao Rogerio para liberar você como colaborador deste painel.</p>
+  </div>
+
+  <div id="app" hidden>
+    <div class="hdr">
+      <div class="hdr-row">
+        <div class="brand">
+          <img class="brand-logo" src="assets/yuny-logo.png" alt="Yuny">
+          <div class="brand-text">
+            <div class="hdr-title">Parcerias</div>
+            <div class="hdr-sub" id="hdr-sub">—</div>
+          </div>
+        </div>
+        <div class="hdr-right">
+          <span class="badge" id="role-badge" hidden>—</span>
+          <button class="btn secondary btn-sm" id="export-img-btn" hidden>Exportar imagem</button>
+          <button class="btn secondary btn-sm" id="logout-btn" hidden>Sair</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== PRIMEIRA CONFIGURAÇÃO (base vazia) ===== -->
+    <div id="view-setup" hidden>
+      <div class="card">
+        <h2>Configuração inicial</h2>
+        <p class="hint">Esta é a primeira vez que o painel é aberto. Defina a senha do Diretor para continuar — esse acesso vê o time todo e cadastra o login de cada gerente.</p>
+        <label for="setup-senha">Senha do Diretor</label>
+        <input type="password" id="setup-senha" placeholder="Escolha uma senha">
+        <button class="btn" id="setup-save">Criar acesso de Diretor</button>
+      </div>
+    </div>
+
+    <!-- ===== LOGIN ===== -->
+    <div id="view-login" hidden>
+      <div class="card">
+        <h2>Entrar</h2>
+        <label for="login-nome">Seu nome</label>
+        <select id="login-nome">
+          <option value="" disabled selected>Escolha…</option>
+        </select>
+        <label for="login-senha">Senha</label>
+        <input type="password" id="login-senha" placeholder="Sua senha">
+        <button class="btn" id="login-btn">Entrar</button>
+        <p class="hint" id="login-error" style="color:var(--red)" hidden>Nome ou senha incorretos.</p>
+      </div>
+    </div>
+
+    <!-- ===== GERENTE VIEW ===== -->
+    <div id="view-gerente" hidden>
+      <div class="tabs" role="tablist">
+        <div class="side-profile" role="presentation">
+          <div class="side-avatar" id="g-side-avatar">—</div>
+          <div class="side-name" id="g-side-name">—</div>
+          <div class="side-role">Gerente</div>
+        </div>
+        <button class="tab" data-tab="g-novo" aria-selected="true">Novo registro</button>
+        <button class="tab" data-tab="g-numeros" aria-selected="false">Meus números</button>
+        <button class="tab" data-tab="g-historico" aria-selected="false">Meu histórico</button>
+        <button class="tab" data-tab="g-corretores" aria-selected="false">Meus corretores</button>
+      </div>
+
+      <section id="g-novo">
+        <div class="card">
+          <h2>Registrar ação</h2>
+          <form id="entry-form">
+            <label for="f-data">Data</label>
+            <input type="date" id="f-data" required>
+
+            <label for="f-tipo">Tipo de ação</label>
+            <select id="f-tipo" required>
+              <option value="" disabled selected>Escolha…</option>
+              <optgroup label="Visitas">
+                <option value="Visitas - Visita">Visita</option>
+                <option value="Visitas - Retorno">Retorno</option>
+              </optgroup>
+              <optgroup label="Treinamento">
+                <option value="Treinamento - Em Stand">Em Stand</option>
+                <option value="Treinamento - Em Imobiliária">Em Imobiliária</option>
+              </optgroup>
+              <optgroup label="Venda">
+                <option value="Venda - Proposta">Proposta</option>
+                <option value="Venda - Venda">Venda</option>
+              </optgroup>
+            </select>
+
+            <div class="row2">
+              <div>
+                <label for="f-estoque">Estoque/Lançamento</label>
+                <select id="f-estoque" required>
+                  <option value="" disabled selected>Escolha…</option>
+                  <option>Uapé</option><option>Esquina</option><option>155</option>
+                  <option>Zip</option><option>Jesuíno</option><option>Lorena</option><option>Camino</option><option>Outro</option>
+                </select>
+              </div>
+              <div>
+                <label for="f-primeira">Parceiro novo ou recorrente</label>
+                <select id="f-primeira">
+                  <option>Primeira vez</option><option>Recorrente</option>
+                </select>
+              </div>
+            </div>
+
+            <div id="f-vgv-wrap" hidden>
+              <label for="f-vgv" id="f-vgv-label">VGV da venda (R$)</label>
+              <input type="number" id="f-vgv" min="0" step="1000" placeholder="Ex: 350000">
+            </div>
+
+            <div id="f-conversao-wrap" hidden>
+              <label for="f-conversao">Isso veio de uma proposta já registrada? (opcional)</label>
+              <select id="f-conversao">
+                <option value="">Não / proposta não estava no Painel</option>
+              </select>
+              <p class="hint" style="margin-top:4px">Vinculando, essa proposta sai do "potencial em propostas abertas" — ela já virou venda.</p>
+            </div>
+
+            <label for="f-parceiro">Parceiro/Imobiliária</label>
+            <input id="f-parceiro" placeholder="Nome do corretor ou da imobiliária" required>
+
+            <label for="f-obs">Observação (opcional)</label>
+            <textarea id="f-obs" placeholder="Qualquer detalhe relevante"></textarea>
+
+            <button class="btn" type="submit" id="f-submit">Registrar</button>
+          </form>
+        </div>
+      </section>
+
+      <section id="g-numeros" hidden>
+        <div class="card">
+          <h2>Período</h2>
+          <div class="filters-row">
+            <div class="pill-row" id="me-period-pills">
+              <button type="button" class="pill-btn" data-period="semana" aria-pressed="true">Semana atual</button>
+              <button type="button" class="pill-btn" data-period="mes" aria-pressed="false">Mês atual</button>
+              <button type="button" class="pill-btn" data-period="custom" aria-pressed="false">Personalizado</button>
+            </div>
+            <div class="custom-range" id="me-custom-range">
+              <div><label for="me-start">De</label><input type="date" id="me-start"></div>
+              <div><label for="me-end">Até</label><input type="date" id="me-end"></div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <h2>VGV no período</h2>
+          <div id="me-vgv-hero"></div>
+        </div>
+        <div class="card">
+          <h2 id="me-totals-title">Totais — semana atual</h2>
+          <div class="stat-grid" id="me-totals"></div>
+          <p class="hint pilar-filter-note" id="me-pilar-filter-note"></p>
+        </div>
+        <div class="card viz-card" id="me-estoque-card" hidden>
+          <h2 id="me-estoque-title">Por projeto</h2>
+          <div id="me-estoque-chart"></div>
+        </div>
+        <div class="card viz-card">
+          <h2>Atividade ao longo do período</h2>
+          <div id="me-trend-chart"></div>
+        </div>
+        <div class="grid-2">
+          <div class="card viz-card">
+            <h2>Ações por pilar</h2>
+            <div id="me-pilar-chart"></div>
+          </div>
+          <div class="card viz-card">
+            <h2>Parceiros novos vs. recorrentes</h2>
+            <div id="me-novo-chart"></div>
+          </div>
+        </div>
+        <div class="card">
+          <h2>Semana atual vs. meta</h2>
+          <div id="me-week"></div>
+        </div>
+      </section>
+
+      <section id="g-historico" hidden>
+        <div class="card">
+          <h2>Últimos registros</h2>
+          <div id="me-log"></div>
+        </div>
+      </section>
+
+      <section id="g-corretores" hidden>
+        <div class="card">
+          <h2>Corretores que escolheram você — <span id="g-corretores-count">0 corretores</span></h2>
+          <p class="hint">Vem do cadastro que o corretor faz sozinho no Portal Parcerias. CPF não aparece aqui por segurança.</p>
+          <div class="corretor-list" id="g-corretores-list"></div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ===== DIRETOR VIEW ===== -->
+    <div id="view-diretor" hidden>
+      <div class="tabs" role="tablist">
+        <div class="side-profile" role="presentation">
+          <div class="side-avatar" id="d-side-avatar">—</div>
+          <div class="side-name" id="d-side-name">Diretor</div>
+          <div class="side-role">Diretor</div>
+        </div>
+        <button class="tab" data-tab="d-visao" aria-selected="true">Visão geral</button>
+        <button class="tab" data-tab="d-resumo" aria-selected="false">Resumo</button>
+        <button class="tab" data-tab="d-individual" aria-selected="false">Individual</button>
+        <button class="tab" data-tab="d-produtos" aria-selected="false">Produtos</button>
+        <button class="tab" data-tab="d-atividade" aria-selected="false">Atividade recente</button>
+        <button class="tab" data-tab="d-corretores" aria-selected="false">Corretores</button>
+        <button class="tab" data-tab="d-metas" aria-selected="false">Metas</button>
+        <button class="tab" data-tab="d-gerentes" aria-selected="false">Gerentes</button>
+      </div>
+
+      <section id="d-visao">
+        <div class="card" id="d-empty" hidden>
+          <p class="empty">Ainda não há gerentes cadastrados. Vá na aba "Gerentes" para adicionar o time.</p>
+        </div>
+
+        <div class="card">
+          <h2>Filtros</h2>
+          <div class="filters-row">
+            <div>
+              <div class="filters-label">Período</div>
+              <div class="pill-row" id="d-period-pills">
+                <button type="button" class="pill-btn" data-period="semana" aria-pressed="true">Semana atual</button>
+                <button type="button" class="pill-btn" data-period="mes" aria-pressed="false">Mês atual</button>
+                <button type="button" class="pill-btn" data-period="custom" aria-pressed="false">Personalizado</button>
+              </div>
+              <div class="custom-range" id="d-custom-range">
+                <div><label for="d-start">De</label><input type="date" id="d-start"></div>
+                <div><label for="d-end">Até</label><input type="date" id="d-end"></div>
+              </div>
+            </div>
+            <div>
+              <div class="filters-label">Gerentes</div>
+              <div class="pill-row" id="d-gerente-chips"></div>
+            </div>
+            <div>
+              <div class="filters-label">Estoque/Lançamento</div>
+              <select id="d-estoque-filter">
+                <option value="">Todos</option>
+                <option>Uapé</option><option>Esquina</option><option>155</option>
+                <option>Zip</option><option>Jesuíno</option><option>Lorena</option><option>Camino</option><option>Outro</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>VGV do time no período</h2>
+          <div id="d-vgv-hero"></div>
+        </div>
+
+        <div class="card">
+          <h2 id="d-kpi-title">Totais do time — semana atual</h2>
+          <div class="stat-grid" id="d-kpi"></div>
+          <p class="hint pilar-filter-note" id="d-pilar-filter-note"></p>
+        </div>
+
+        <div class="card viz-card" id="d-estoque-card" hidden>
+          <h2 id="d-estoque-title">Por projeto</h2>
+          <div id="d-estoque-chart"></div>
+        </div>
+
+        <div class="card viz-card">
+          <h2>Atividade do time ao longo do período</h2>
+          <div id="d-trend-chart"></div>
+        </div>
+
+        <div class="grid-2">
+          <div class="card viz-card">
+            <h2>Atividades por pilar — time todo</h2>
+            <div id="d-pilar-chart"></div>
+          </div>
+          <div class="card viz-card">
+            <h2>Parceiros novos vs. recorrentes — time todo</h2>
+            <div id="d-novo-chart"></div>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="card viz-card">
+            <h2>Volume de registros por gerente</h2>
+            <div id="d-ranked-chart"></div>
+          </div>
+          <div class="card viz-card">
+            <h2>Atividades por pilar, por gerente</h2>
+            <div id="d-grouped-chart"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="d-resumo" hidden>
+        <div class="card">
+          <h2>Período</h2>
+          <div class="pill-row" id="r-period-pills">
+            <button type="button" class="pill-btn" data-period="semana" aria-pressed="true">Semana atual</button>
+            <button type="button" class="pill-btn" data-period="mes" aria-pressed="false">Mês atual</button>
+            <button type="button" class="pill-btn" data-period="custom" aria-pressed="false">Personalizado</button>
+          </div>
+          <div class="custom-range" id="r-custom-range">
+            <div><label for="r-start">De</label><input type="date" id="r-start"></div>
+            <div><label for="r-end">Até</label><input type="date" id="r-end"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2 id="r-destaques-title">Destaques — semana atual</h2>
+          <p class="hint">Calculado automaticamente a partir dos registros do time no período — sem opinião, só números.</p>
+          <div class="stat-grid" id="r-destaques"></div>
+        </div>
+
+        <div class="card">
+          <h2>Alertas</h2>
+          <p class="hint">Um gerente entra aqui quando um pilar dele está zerado enquanto outro está acima da média do time, ou quando o volume de atividade é alto mas nenhuma proposta saiu ainda.</p>
+          <div id="r-alertas"></div>
+        </div>
+
+        <div class="card">
+          <h2>Resumo pra enviar</h2>
+          <p class="hint">Mesmo conteúdo de cima, em texto corrido — pra colar direto numa mensagem.</p>
+          <pre id="r-text-preview" class="resumo-text"></pre>
+          <button class="btn secondary btn-sm" id="r-copy-btn" style="margin-top:10px">Copiar texto</button>
+        </div>
+      </section>
+
+      <section id="d-individual" hidden>
+        <div class="card" id="i-empty" hidden>
+          <p class="empty">Ainda não há gerentes cadastrados. Vá na aba "Gerentes" para adicionar o time.</p>
+        </div>
+
+        <div class="card" id="i-filtros-card">
+          <h2>Gerente e período</h2>
+          <div class="filters-row">
+            <div>
+              <div class="filters-label">Gerente</div>
+              <select id="i-gerente"></select>
+            </div>
+            <div>
+              <div class="filters-label">Período</div>
+              <div class="pill-row" id="i-period-pills">
+                <button type="button" class="pill-btn" data-period="semana" aria-pressed="true">Semana atual</button>
+                <button type="button" class="pill-btn" data-period="mes" aria-pressed="false">Mês atual</button>
+                <button type="button" class="pill-btn" data-period="custom" aria-pressed="false">Personalizado</button>
+              </div>
+              <div class="custom-range" id="i-custom-range">
+                <div><label for="i-start">De</label><input type="date" id="i-start"></div>
+                <div><label for="i-end">Até</label><input type="date" id="i-end"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2 id="i-vgv-title">VGV no período</h2>
+          <div id="i-vgv-hero"></div>
+        </div>
+
+        <div class="card">
+          <h2 id="i-kpi-title">Totais — semana atual</h2>
+          <p class="hint">A linha menor embaixo de cada número é a média do time inteiro no mesmo período, pra comparar.</p>
+          <div class="stat-grid" id="i-kpi"></div>
+        </div>
+
+        <div class="card viz-card">
+          <h2>Tendência — últimas 8 semanas</h2>
+          <p class="hint">Independente do período escolhido acima — mostra sempre as últimas 8 semanas, pra ver se ele está melhorando, piorando ou estável.</p>
+          <div id="i-trend-chart"></div>
+        </div>
+
+        <div class="card">
+          <h2>Funil de conversão</h2>
+          <p class="hint">Treinamento e visita não têm conversão entre si — a conversão é visita → proposta → venda. Toque em "Propostas" ou "Vendas" pra ver a lista do período.</p>
+          <div id="i-funil"></div>
+          <div id="i-funil-lista"></div>
+        </div>
+
+        <div class="card">
+          <h2>Corretores dele</h2>
+          <div class="stat-grid" id="i-corretores-resumo"></div>
+          <button class="btn secondary btn-sm" id="i-ver-corretores-btn" style="margin-top:12px">Ver lista completa</button>
+        </div>
+      </section>
+
+      <section id="d-produtos" hidden>
+        <div class="card" id="p-empty" hidden>
+          <p class="empty">Ainda não há gerentes cadastrados. Vá na aba "Gerentes" para adicionar o time.</p>
+        </div>
+        <div class="card">
+          <h2>Período</h2>
+          <div class="pill-row" id="p-period-pills">
+            <button type="button" class="pill-btn" data-period="semana" aria-pressed="true">Semana atual</button>
+            <button type="button" class="pill-btn" data-period="mes" aria-pressed="false">Mês atual</button>
+            <button type="button" class="pill-btn" data-period="custom" aria-pressed="false">Personalizado</button>
+          </div>
+          <div class="custom-range" id="p-custom-range">
+            <div><label for="p-start">De</label><input type="date" id="p-start"></div>
+            <div><label for="p-end">Até</label><input type="date" id="p-end"></div>
+          </div>
+        </div>
+        <div class="card">
+          <h2 id="p-table-title">Ações por produto — semana atual</h2>
+          <p class="hint">Time inteiro, sem filtro de gerente — os mesmos 4 pilares de sempre, agora agrupados por produto/lançamento em vez de por gerente.</p>
+          <div class="table-wrap" id="p-table"></div>
+        </div>
+      </section>
+
+      <section id="d-atividade" hidden>
+        <div class="card">
+          <h2>Últimos registros do time</h2>
+          <div id="d-log"></div>
+        </div>
+      </section>
+
+      <section id="d-corretores" hidden>
+        <div class="card">
+          <h2>Corretores cadastrados no Portal Parcerias</h2>
+          <p class="hint">Vem do cadastro que o corretor faz sozinho no Portal. CPF não aparece aqui por segurança — se precisar, está direto na planilha "Cadastros do Portal Parcerias".</p>
+          <div class="stat-grid" id="d-corretores-resumo"></div>
+        </div>
+        <div class="card">
+          <h2>Filtrar por gerente</h2>
+          <select id="d-corretores-filtro">
+            <option value="">Todos os gerentes</option>
+          </select>
+        </div>
+        <div class="card">
+          <h2>Corretores</h2>
+          <div class="corretor-list" id="d-corretores-list"></div>
+        </div>
+      </section>
+
+      <section id="d-metas" hidden>
+        <div class="card">
+          <h2>Metas de rotina (por semana)</h2>
+          <p class="hint">Vale para todos os gerentes. Mudar aqui atualiza o painel de todo mundo.</p>
+          <label for="m-plantao">Plantão de estoque</label>
+          <input type="number" min="0" id="m-plantao">
+          <label for="m-visita">Visita a imobiliária</label>
+          <input type="number" min="0" id="m-visita">
+          <label for="m-apresentacao">Apresentação de lançamento</label>
+          <input type="number" min="0" id="m-apresentacao">
+          <button class="btn" id="m-save">Salvar metas</button>
+        </div>
+      </section>
+
+      <section id="d-gerentes" hidden>
+        <div class="card">
+          <h2>Adicionar gerente</h2>
+          <p class="hint">Crie o login (nome + senha) de cada gerente. Eles usam só isso para entrar — não precisam de conta Claude própria para o painel, mas o link do painel só abre pra quem você liberou como colaborador.</p>
+          <label for="ng-nome">Nome</label>
+          <input id="ng-nome" placeholder="Nome do gerente">
+          <label for="ng-senha">Senha</label>
+          <input type="password" id="ng-senha" placeholder="Senha de acesso">
+          <button class="btn" id="ng-save">Adicionar gerente</button>
+        </div>
+        <div class="card">
+          <h2>Gerentes cadastrados</h2>
+          <div id="gerentes-list"></div>
+        </div>
+        <div class="card">
+          <h2>Minha senha de Diretor</h2>
+          <div class="row2">
+            <input type="password" id="dp-newpass" placeholder="Nova senha">
+            <button class="btn secondary btn-sm" id="dp-save">Trocar</button>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+<div class="viz-tooltip" id="viz-tooltip"></div>
+
+<!-- Antes era js/db-local.js (guardava tudo só no navegador). Agora o Painel
+     fala com a planilha Google Sheets via Apps Script — veja o README. Se
+     quiser voltar a testar sem a planilha, troque esta linha de volta para
+     <script src="js/db-local.js?v=20261123b"></script>. -->
+<script src="js/db-sheets.js?v=20261123b"></script>
+<!-- html2canvas: biblioteca pra tirar "print" da tela em código, usada só pelo
+     botão "Exportar imagem" (ver exportarAbaComoImagem em js/app.js). -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="js/app.js?v=20261123b"></script>
+</body>
+</html>
