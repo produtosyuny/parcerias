@@ -1,5 +1,5 @@
 {
-  "estoques": ["Uapé", "Esquina", "155", "Zip", "Jesuíno", "Lorena", "Outro"],
+  "estoques": ["Uapé", "Esquina", "155", "Zip", "Jesuíno", "Lorena", "Camino", "Outro"],
   "metasDefault": { "plantao": 1, "visita": 1, "apresentacao": 3 },
 
   "_comentario_sheets": "Depois de implantar o Code.gs como Web App (veja o README), cole aqui a URL que o Google te deu em sheetsWebAppUrl. Não precisa trocar o sheetsToken — ele já é o mesmo valor que está em Code.gs.",

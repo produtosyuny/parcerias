@@ -53,6 +53,83 @@ formato de mensagem, pra colar direto numa conversa — a mesma ideia de
 mandar o resumo da semana por WhatsApp, só que sem precisar montar nada na
 mão toda vez.
 
+### Aba "Individual" (visão do Diretor)
+
+Pensada pra análise de um gerente só por vez — base pra 1:1, decidir quem
+precisa de coaching, ou levar pro Meyer o desempenho individual de alguém.
+Escolhe o gerente e o período num filtro só; tudo abaixo recalcula na hora:
+
+- **VGV no período** do gerente escolhido (igual ao hero que ele já vê na
+  própria visão, só que o Diretor consegue olhar de qualquer um).
+- **Totais dos 4 pilares**, cada um com a "Média do time" no mesmo período
+  logo embaixo do número — pra comparar sem precisar fazer conta de cabeça.
+  Usei o número bruto da média (não um %), de propósito: com números pequenos
+  um "+300%" exagera uma diferença de 1 registro pra 4, e isso confunde mais
+  do que ajuda.
+- **Tendência — últimas 8 semanas**: ao contrário do resto da aba, esse
+  gráfico não segue o filtro de período de cima — mostra sempre as últimas 8
+  semanas fechadas, pra responder "ele está melhorando, piorando ou estável?"
+  sem precisar ficar trocando o período toda hora.
+- **Funil de conversão** pessoal: Visitas+Treinamentos → Propostas → Vendas,
+  com a taxa de conversão entre cada etapa.
+- **Corretores dele**: contagem (igual à aba Corretores, sem dado sensível) e
+  um botão "Ver lista completa" que já leva pra aba Corretores com o filtro
+  por esse gerente aplicado.
+
+### Aba "Produtos" (visão do Diretor)
+
+Mesma ideia da aba Resumo — time inteiro, sem filtro de gerente — só que
+agrupado por produto/lançamento em vez de por gerente: uma tabela com os
+4 pilares (Visitas/Treinamentos/Propostas/Vendas) lado a lado, por produto.
+Pensada pra substituir o relatório que antes era preenchido à mão (aquela
+planilha de papel do Quaddra Jesuíno). Todo produto cadastrado em
+`data/config.json` aparece na tabela, mesmo com zero atividade no período
+— isso também é informação (ninguém foi lá ainda). O que não tem estoque
+definido cai numa linha "Sem estoque/lançamento" no fim.
+
+### Proposta → Venda: vincular pra não contar "potencial" em dobro
+
+Antes, "Proposta" e "Venda" eram dois registros totalmente soltos — quando
+uma proposta fechava, o gerente lançava uma Venda nova, e a proposta
+continuava contando pra sempre como "potencial em propostas", mesmo já
+tendo virado venda de verdade.
+
+Agora, ao registrar uma **Venda**, aparece um campo opcional "Isso veio de
+uma proposta já registrada?" com a lista das propostas em aberto desse
+gerente (data + parceiro + estoque + valor). Vinculando, aquela proposta
+sai do cálculo de "Potencial em propostas abertas" em todo o Painel (Resumo,
+Individual, Visão geral e a própria visão do gerente) — sem apagar nada:
+a contagem de "N propostas no período" continua contando as duas, porque
+isso é histórico (quantas propostas foram feitas), só o valor em R$ que
+ainda está em aberto é que desconta.
+
+É opcional de propósito — se o gerente esquecer de vincular, ou se a
+proposta nunca tinha sido lançada no Painel, nada quebra: só continua
+contando como "em aberto" até alguém linkar.
+
+**Passo manual obrigatório**: isso depende de uma coluna nova na planilha
+(coluna L, "convertida de proposta"), então além de subir os arquivos do
+site, você precisa colar o `Code.gs` atualizado no Apps Script de novo e
+reimplantar como "Nova versão" (mesmo passo a passo de sempre, descrito mais
+abaixo) — sem isso, o campo aparece na tela mas o vínculo não é salvo de
+verdade. Não precisa criar a coluna L na planilha manualmente; o Apps Script
+escreve nela direto.
+
+### Botão "Exportar imagem"
+
+Fica no cabeçalho, do lado do "Sair", e funciona em qualquer aba aberta (não
+só no Resumo) — tanto na visão do gerente quanto na do diretor. Ele tira uma
+espécie de "print" por código de tudo que está na aba atual, mesmo a parte
+que só apareceria rolando a tela, e baixa como um arquivo `.png` — pra não
+precisar mais printar a tela na mão pra mandar pro WhatsApp.
+
+Por baixo dos panos usa uma biblioteca de terceiros (html2canvas), carregada
+de um CDN público (cdnjs) — então depende de internet; sem conexão, aparece
+um aviso pedindo pra verificar a internet e tentar de novo, em vez de travar.
+Vale testar depois de subir, porque não deu pra testar esse botão 100% aqui
+no meu ambiente (um bloqueio de rede específico daqui, não do seu site) —
+me chama se algum gráfico sair cortado ou estranho na imagem exportada.
+
 ## Como o Painel fala com a planilha (Google Sheets)
 
 O Painel hoje guarda tudo na planilha **registro_parcerias** do Google Drive, através de

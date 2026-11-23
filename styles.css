@@ -97,6 +97,13 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 }
 .hdr-sub{font-size:14px; color:var(--ink); margin-top:3px; font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 .hdr-right{display:flex; align-items:center; gap:10px; flex-shrink:0}
+/* com 3 itens (selo + Exportar imagem + Sair), a linha do cabeçalho não cabe
+   mais numa tela de celular estreita — quebra pro selo+botões irem pra uma
+   segunda linha em vez de sobrepor o nome "Parcerias". */
+@media (max-width:460px){
+  .hdr-row{flex-wrap:wrap; row-gap:10px}
+  .hdr-right{width:100%; justify-content:flex-end}
+}
 .badge{
   font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:.14em;
   color:var(--accent-ink); background:var(--ink); padding:6px 11px;
@@ -170,6 +177,44 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
   font-family:var(--corpo); font-size:13px; line-height:1.6; color:var(--ink);
   background:var(--bg); border:1px solid var(--line); padding:14px; margin:10px 0 0;
   white-space:pre-wrap; word-break:break-word; max-height:360px; overflow-y:auto;
+}
+
+/* aba "Produtos" — tabela "produto × 4 pilares" (substitui o relatório que
+   era preenchido à mão por produto/lançamento) */
+.table-wrap{overflow-x:auto; position:relative}
+/* sombra no canto direito só quando a tabela realmente não cabe na largura —
+   evitar o usuário parar antes de ver Propostas/Vendas no celular sem saber
+   que dá pra arrastar. ".has-overflow" é alternada via JS depois de montar
+   a tabela (ver renderProdutosTable). */
+.table-wrap.has-overflow::after{
+  content:""; position:absolute; top:0; right:0; bottom:0; width:28px;
+  background:linear-gradient(to right, transparent, var(--card) 65%);
+  pointer-events:none;
+}
+.prod-table{width:100%; border-collapse:collapse; font-size:13.5px}
+.prod-table th, .prod-table td{padding:10px 12px; text-align:right; white-space:nowrap}
+.prod-table th:first-child, .prod-table td:first-child{text-align:left; white-space:normal}
+.prod-table thead th{
+  font-family:var(--corpo); font-size:11px; font-weight:600; letter-spacing:.08em;
+  text-transform:uppercase; color:var(--muted); border-bottom:2px solid var(--line);
+}
+.prod-table tbody td{border-bottom:1px solid var(--line); font-variant-numeric:tabular-nums}
+.prod-table tbody tr:last-child td{border-bottom:none}
+.prod-table tbody tr.is-total td{font-weight:700; border-top:2px solid var(--line); border-bottom:none}
+.prod-table td.produto-nome{font-family:var(--titulo); color:var(--ink)}
+.prod-table td.zero{color:var(--muted)}
+
+/* aba "Individual" — funil de conversão de um gerente só */
+.funil-row{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+.funil-stage{flex:1 1 140px; min-width:140px}
+.funil-pct{
+  flex:0 0 auto; text-align:center; min-width:64px; font-family:var(--titulo);
+  font-size:15px; font-weight:500; color:var(--accent-2);
+}
+.funil-pct .fp-label{display:block; font-size:10px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin-top:2px; font-family:var(--corpo)}
+@media (max-width:540px){
+  .funil-row{flex-direction:column; align-items:stretch}
+  .funil-pct{padding:2px 0}
 }
 
 /* KPI em destaque (VGV) */

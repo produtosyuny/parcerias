@@ -8,7 +8,7 @@
   // if that fetch fails (e.g. opening index.html directly as a file:// URL,
   // which browsers block fetch() for) — GitHub Pages serves it fine.
   var DEFAULT_CONFIG = {
-    estoques: ["Uapé", "Esquina", "155", "Zip", "Jesuíno", "Lorena", "Outro"],
+    estoques: ["Uapé", "Esquina", "155", "Zip", "Jesuíno", "Lorena", "Camino", "Outro"],
     metasDefault: { plantao: 1, visita: 1, apresentacao: 3 }
   };
   var CONFIG = DEFAULT_CONFIG;
@@ -32,6 +32,7 @@
   var meState = { periodo: "semana", start: null, end: null, pilarSel: null };
   var dState = { periodo: "semana", start: null, end: null, estoque: "", selected: null, knownIds: null, pilarSel: null };
   var rState = { periodo: "semana", start: null, end: null }; // aba "Resumo" — sempre time todo, sem filtro de gerente/estoque
+  var iState = { periodo: "semana", start: null, end: null, gerenteId: "" }; // aba "Individual" — um gerente por vez
 
   function $(id){ return document.getElementById(id); }
   function show(el){ el.hidden = false; }
@@ -72,14 +73,34 @@
     return parts[2] + "/" + parts[1];
   }
 
-  function computeTotals(entries){
+  // `allEntries` (opcional) é a lista COMPLETA desse(s) gerente(s), sem filtro
+  // de período — só serve pra descobrir quais propostas já viraram venda (o
+  // registro da venda pode ter sido feito num período diferente do da
+  // proposta original, então o link pode apontar pra fora de `entries`).
+  // Sem esse 2º parâmetro, vgvPropostas soma tudo bruto (sem descontar
+  // conversões) — por isso todo call site relevante passa o unfiltered junto.
+  function computeTotals(entries, allEntries){
     var t = { visitas:0, treinamentos:0, propostas:0, vendas:0, vgv:0, vgvPropostas:0 };
+    var convertidas = null;
+    if (allEntries){
+      convertidas = {};
+      allEntries.forEach(function(e){
+        if (e.tipo === "Venda - Venda" && e.convertidaDeProposta) convertidas[e.convertidaDeProposta] = true;
+      });
+    }
     entries.forEach(function(e){
       if (TIPOS_PILAR(e.tipo) === "Visitas") t.visitas++;
       else if (TIPOS_PILAR(e.tipo) === "Treinamento") t.treinamentos++;
       else if (e.tipo === "Venda - Proposta"){
         t.propostas++;
-        t.vgvPropostas += (typeof e.vgv === "number" && !isNaN(e.vgv)) ? e.vgv : 0;
+        // a CONTAGEM de propostas continua contando todas (é histórico: "N
+        // propostas foram feitas nesse período") — só o VGV "em potencial"
+        // desconta as que a gente já sabe que fecharam, pra não continuar
+        // somando como "ainda em aberto" um negócio que já virou venda.
+        var jaConvertida = convertidas && e.criadoEm && convertidas[e.criadoEm];
+        if (!jaConvertida){
+          t.vgvPropostas += (typeof e.vgv === "number" && !isNaN(e.vgv)) ? e.vgv : 0;
+        }
       }
       else if (e.tipo === "Venda - Venda"){
         t.vendas++;
@@ -451,17 +472,22 @@
     container.appendChild(svg);
   }
 
-  function renderGroupedBarChart(container, items){
+  // `series` e `ariaLabel` são opcionais — sem eles, mantém o comportamento
+  // original (3 pilares, usado no gráfico "por gerente" da Visão geral). A
+  // aba Individual passa 4 séries (visitas/treinamentos/propostas/vendas)
+  // pra montar a mesma visualização como tendência ao longo de várias semanas.
+  function renderGroupedBarChart(container, items, series, ariaLabel){
     container.innerHTML = "";
     if (!items.length){
       var p = document.createElement("p"); p.className = "viz-empty"; p.textContent = "Sem dados para esse filtro.";
       container.appendChild(p); return;
     }
-    var series = [
+    series = series || [
       { key: "visitas", name: "Visitas", color: "var(--viz-cat-1)" },
       { key: "treinamento", name: "Treinamento", color: "var(--viz-cat-2)" },
       { key: "venda", name: "Venda", color: "var(--viz-cat-3)" }
     ];
+    ariaLabel = ariaLabel || "Atividades por pilar, por gerente";
     var max = 1;
     items.forEach(function(it){ series.forEach(function(s){ if ((it[s.key] || 0) > max) max = it[s.key]; }); });
     var groupW = Math.max(90, Math.min(130, 420 / items.length)), barW = 18, gap = 3, chartH = 180, baseline = chartH - 26, topPad = 10;
@@ -529,21 +555,23 @@
     var prevBounds = previousPeriodBounds(rState);
     var ids = Object.keys(logins).filter(function(id){ return logins[id].papel === "gerente"; });
 
-    var perGerente = [], allEntries = [], allEntriesPrev = [];
+    var perGerente = [], allEntries = [], allEntriesPrev = [], allEntriesFull = [];
     ids.forEach(function(id){
-      var filtered = filterEntries(entriesByGerente[id] || [], bounds, "");
-      var t = computeTotals(filtered);
+      var raw = entriesByGerente[id] || [];
+      var filtered = filterEntries(raw, bounds, "");
+      var t = computeTotals(filtered, raw);
       perGerente.push({
         id: id, nome: (logins[id] || {}).nome || id,
         visitas: t.visitas, treinamentos: t.treinamentos, propostas: t.propostas, vendas: t.vendas,
         vgvPropostas: t.vgvPropostas, volume: t.visitas + t.treinamentos
       });
       allEntries = allEntries.concat(filtered);
-      allEntriesPrev = allEntriesPrev.concat(filterEntries(entriesByGerente[id] || [], prevBounds, ""));
+      allEntriesPrev = allEntriesPrev.concat(filterEntries(raw, prevBounds, ""));
+      allEntriesFull = allEntriesFull.concat(raw);
     });
 
-    var totals = computeTotals(allEntries);
-    var totalsPrev = computeTotals(allEntriesPrev);
+    var totals = computeTotals(allEntries, allEntriesFull);
+    var totalsPrev = computeTotals(allEntriesPrev, allEntriesFull);
     var produtoRank = estoqueCounts(allEntries); // já ordenado, maior primeiro
 
     var n = perGerente.length || 1;
@@ -611,7 +639,7 @@
     linhas.push("Produto destaque: " + (r.produtoDestaque ? r.produtoDestaque.label + " (" + r.produtoDestaque.value + " atividades)" : "sem registros no período"));
     linhas.push("Campeão de visitas: " + (r.campeaoVisitas ? r.campeaoVisitas.nome + " (" + r.campeaoVisitas.visitas + " visitas)" : "nenhuma visita registrada"));
     linhas.push("Mais treinamento: " + (r.campeaoTreino ? r.campeaoTreino.nome + " (" + r.campeaoTreino.treinamentos + " treinamentos)" : "nenhum treinamento registrado"));
-    linhas.push("Propostas no período: " + r.totals.propostas + " (" + fmtBRL(r.totals.vgvPropostas) + ")" + deltaTextoSimples_(r.totals.propostas, r.totalsPrev.propostas));
+    linhas.push("Propostas no período: " + r.totals.propostas + " (" + fmtBRL(r.totals.vgvPropostas) + " ainda em aberto)" + deltaTextoSimples_(r.totals.propostas, r.totalsPrev.propostas));
     linhas.push("");
     if (r.alertas.length){
       linhas.push("Alertas:");
@@ -639,7 +667,7 @@
       destaqueTileHTML(r.produtoDestaque ? r.produtoDestaque.label : null, "Produto destaque", r.produtoDestaque ? r.produtoDestaque.value + " atividades no período" : "", "Sem registros no período") +
       destaqueTileHTML(r.campeaoVisitas ? r.campeaoVisitas.nome : null, "Campeão de visitas", r.campeaoVisitas ? r.campeaoVisitas.visitas + " visitas" : "", "Nenhuma visita registrada") +
       destaqueTileHTML(r.campeaoTreino ? r.campeaoTreino.nome : null, "Mais treinamento", r.campeaoTreino ? r.campeaoTreino.treinamentos + " treinamentos" : "", "Nenhum treinamento registrado") +
-      destaqueTileHTML(String(r.totals.propostas), "Propostas no período", fmtBRL(r.totals.vgvPropostas) + " em potencial" + deltaTextoSimples_(r.totals.propostas, r.totalsPrev.propostas));
+      destaqueTileHTML(String(r.totals.propostas), "Propostas no período", fmtBRL(r.totals.vgvPropostas) + " ainda em aberto" + deltaTextoSimples_(r.totals.propostas, r.totalsPrev.propostas));
 
     if (!r.temGerentes){
       $("r-alertas").innerHTML = '<p class="empty">Ainda não há gerentes cadastrados.</p>';
@@ -668,6 +696,268 @@
   function wireCustomRange(startId, endId, state, onChange){
     $(startId).addEventListener("change", function(){ state.start = $(startId).value; onChange(); });
     $(endId).addEventListener("change", function(){ state.end = $(endId).value; onChange(); });
+  }
+
+  // ---------- aba "Individual" (visão do Diretor) ----------
+  // Mesmas 4 séries do computeTotals(), pra reusar renderGroupedBarChart() no
+  // gráfico de tendência (em vez do trio visitas/treinamento/venda do gráfico
+  // "por gerente" da Visão geral).
+  var WEEKLY_SERIES = [
+    { key: "visitas", name: "Visitas", color: "var(--viz-cat-1)" },
+    { key: "treinamentos", name: "Treinamentos", color: "var(--viz-cat-2)" },
+    { key: "propostas", name: "Propostas", color: "var(--viz-cat-3)" },
+    { key: "vendas", name: "Vendas", color: "var(--viz-cat-4)" }
+  ];
+
+  // últimas N semanas fechadas, terminando na semana atual — sempre a mesma
+  // janela, independente do período escolhido nos filtros da aba (pensado pra
+  // responder "ele está melhorando, piorando ou estável", não "no período X").
+  function lastNWeeksBuckets(n){
+    var atual = weekBounds();
+    var buckets = [];
+    for (var i = n - 1; i >= 0; i--){
+      var ref = new Date(atual.start.getFullYear(), atual.start.getMonth(), atual.start.getDate() - i * 7);
+      buckets.push(weekBounds(ref));
+    }
+    return buckets;
+  }
+
+  // "1.5" -> "1,5" ; "2.0" -> "2" — pra mostrar a média do time sem zero
+  // decorativo nem notação estranha.
+  function fmtMedia_(n){
+    var r = Math.round((n || 0) * 10) / 10;
+    return Number.isInteger(r) ? String(r) : r.toFixed(1).replace(".", ",");
+  }
+  function statTileComMedia(n, l, mediaTxt){
+    return '<div class="stat"><div class="n">' + renderEscaped(String(n)) + '</div><div class="l">' + renderEscaped(l) + '</div>' +
+      '<div class="sub">Média do time: ' + renderEscaped(mediaTxt) + '</div></div>';
+  }
+  function renderFunilHTML(atividade, propostas, vendas){
+    var pct1 = atividade > 0 ? Math.round((propostas / atividade) * 100) : null;
+    var pct2 = propostas > 0 ? Math.round((vendas / propostas) * 100) : null;
+    function pctCell(pct){
+      return '<div class="funil-pct">' + (pct == null ? "—" : pct + "%") + '<span class="fp-label">conversão</span></div>';
+    }
+    function stage(html){ return '<div class="funil-stage">' + html + '</div>'; }
+    return '<div class="funil-row">' +
+      stage(statTile(atividade, "Atividade (visitas + treinamentos)")) +
+      pctCell(pct1) +
+      stage(statTile(propostas, "Propostas")) +
+      pctCell(pct2) +
+      stage(statTile(vendas, "Vendas")) +
+      '</div>';
+  }
+
+  function populateIndividualGerenteSelect(){
+    var sel = $("i-gerente");
+    if (!sel) return;
+    var ids = Object.keys(logins).filter(function(id){ return logins[id].papel === "gerente"; })
+      .sort(function(a,b){ return (logins[a].nome||"").localeCompare(logins[b].nome||""); });
+    var current = iState.gerenteId || sel.value;
+    sel.innerHTML = "";
+    ids.forEach(function(id){
+      var opt = document.createElement("option");
+      opt.value = id; opt.textContent = logins[id].nome || id;
+      sel.appendChild(opt);
+    });
+    if (ids.indexOf(current) !== -1) sel.value = current;
+    else if (ids.length) sel.value = ids[0];
+    iState.gerenteId = sel.value || "";
+  }
+
+  // Tudo calculado na hora a partir de entriesByGerente/allCorretoresRaw — nada
+  // digitado à mão. A "média do time" usa sempre o mesmo período escolhido nos
+  // filtros desta aba, calculada sobre todos os gerentes (não só o selecionado).
+  function renderIndividualGerente(){
+    if (!me || me.papel !== "diretor") return;
+    var ids = Object.keys(logins).filter(function(id){ return logins[id].papel === "gerente"; });
+    $("i-empty").hidden = ids.length > 0;
+    $("i-filtros-card").hidden = ids.length === 0;
+    if (!ids.length) return;
+
+    if (!iState.gerenteId || ids.indexOf(iState.gerenteId) === -1) iState.gerenteId = ids[0];
+    if ($("i-gerente") && $("i-gerente").value !== iState.gerenteId) $("i-gerente").value = iState.gerenteId;
+    var nome = (logins[iState.gerenteId] || {}).nome || iState.gerenteId;
+
+    var bounds = periodBounds(iState);
+    var prevBounds = previousPeriodBounds(iState);
+    var entries = entriesByGerente[iState.gerenteId] || [];
+    var filtered = filterEntries(entries, bounds, "");
+    var filteredPrev = filterEntries(entries, prevBounds, "");
+    var t = computeTotals(filtered, entries);
+    var tPrev = computeTotals(filteredPrev, entries);
+
+    var perGerenteT = ids.map(function(id){ var raw = entriesByGerente[id] || []; return computeTotals(filterEntries(raw, bounds, ""), raw); });
+    var n = perGerenteT.length || 1;
+    var media = {};
+    PILARES_ORDEM.forEach(function(p){
+      media[p] = perGerenteT.reduce(function(s, g){ return s + g[p]; }, 0) / n;
+    });
+
+    $("i-vgv-title").textContent = "VGV no período — " + nome;
+    var ticket = t.vendas ? (t.vgv / t.vendas) : 0;
+    $("i-vgv-hero").innerHTML = heroKpi(
+      fmtBRL(t.vgv),
+      deltaBadge(t.vgv, tPrev.vgv),
+      heroMini(t.vendas, "Vendas") + heroMini(fmtBRL(ticket), "Ticket médio") + heroMini(fmtBRL(t.vgvPropostas), "Potencial em propostas abertas")
+    );
+
+    $("i-kpi-title").textContent = "Totais de " + nome + " — " + periodLabel(iState);
+    $("i-kpi").innerHTML =
+      statTileComMedia(t.visitas, "Visitas", fmtMedia_(media.visitas)) +
+      statTileComMedia(t.treinamentos, "Treinamentos", fmtMedia_(media.treinamentos)) +
+      statTileComMedia(t.propostas, "Propostas", fmtMedia_(media.propostas)) +
+      statTileComMedia(t.vendas, "Vendas", fmtMedia_(media.vendas));
+
+    var trendItems = lastNWeeksBuckets(8).map(function(b){
+      var te = computeTotals(filterEntries(entries, b, ""));
+      return { label: fmtRange(b), visitas: te.visitas, treinamentos: te.treinamentos, propostas: te.propostas, vendas: te.vendas };
+    });
+    renderGroupedBarChart($("i-trend-chart"), trendItems, WEEKLY_SERIES, "Tendência das últimas 8 semanas — " + nome);
+
+    $("i-funil").innerHTML = renderFunilHTML(t.visitas + t.treinamentos, t.propostas, t.vendas);
+
+    var corretoresDele = allCorretoresRaw.filter(function(c){ return c.gerenteId === iState.gerenteId; });
+    var aValidar = corretoresDele.filter(function(c){ return String(c.creciValidado || "").toLowerCase().indexOf("a validar") !== -1; }).length;
+    $("i-corretores-resumo").innerHTML =
+      statTile(corretoresDele.length, "Corretores dele") +
+      statTile(aValidar, "CRECI a validar");
+  }
+
+  // ---------- aba "Produtos" (visão do Diretor) ----------
+  // Mesma ideia da aba Resumo (time inteiro, sem filtro de gerente), só que
+  // agrupado por produto/lançamento em vez de por gerente — pensado pra
+  // substituir o relatório "produto × 4 pilares" que era preenchido à mão.
+  var pState = { periodo: "semana", start: null, end: null };
+
+  function computeProdutos(){
+    var bounds = periodBounds(pState);
+    var ids = Object.keys(logins).filter(function(id){ return logins[id].papel === "gerente"; });
+    var allEntries = [];
+    ids.forEach(function(id){
+      allEntries = allEntries.concat(filterEntries(entriesByGerente[id] || [], bounds, ""));
+    });
+
+    var porProduto = {};
+    function bucket(nome){
+      if (!porProduto[nome]) porProduto[nome] = { visitas: 0, treinamentos: 0, propostas: 0, vendas: 0 };
+      return porProduto[nome];
+    }
+    // garante que todo produto cadastrado apareça, mesmo zerado — igual ao
+    // papel, onde "Uapé = 0 0 0 0" também é uma informação (ninguém foi lá).
+    // "Outro" fica de fora da lista fixa: só aparece se tiver registro de
+    // verdade, pra não virar uma linha de zero permanente e sem sentido.
+    (CONFIG.estoques || []).forEach(function(nome){ if (nome !== "Outro") bucket(nome); });
+
+    allEntries.forEach(function(e){
+      var nome = e.estoque || "Sem estoque/lançamento";
+      var b = bucket(nome);
+      if (TIPOS_PILAR(e.tipo) === "Visitas") b.visitas++;
+      else if (TIPOS_PILAR(e.tipo) === "Treinamento") b.treinamentos++;
+      else if (e.tipo === "Venda - Proposta") b.propostas++;
+      else if (e.tipo === "Venda - Venda") b.vendas++;
+    });
+
+    // ordem: segue a ordem do config.json primeiro (é a ordem que o time já
+    // conhece); o que não está lá (ex.: "Sem estoque/lançamento") vai depois,
+    // ordenado por volume total, maior primeiro.
+    var ordemConfig = (CONFIG.estoques || []).filter(function(n){ return n !== "Outro"; });
+    function totalDe(n){ var b = porProduto[n]; return b.visitas + b.treinamentos + b.propostas + b.vendas; }
+    var nomes = Object.keys(porProduto).sort(function(a, b){
+      var ia = ordemConfig.indexOf(a), ib = ordemConfig.indexOf(b);
+      if (ia !== -1 || ib !== -1) return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
+      return totalDe(b) - totalDe(a);
+    });
+
+    var total = { visitas: 0, treinamentos: 0, propostas: 0, vendas: 0 };
+    nomes.forEach(function(n){
+      var b = porProduto[n];
+      total.visitas += b.visitas; total.treinamentos += b.treinamentos;
+      total.propostas += b.propostas; total.vendas += b.vendas;
+    });
+
+    return { bounds: bounds, nomes: nomes, porProduto: porProduto, total: total, temGerentes: ids.length > 0 };
+  }
+
+  function renderProdutosTable(){
+    if (!me || me.papel !== "diretor") return;
+    var r = computeProdutos();
+    $("p-empty").hidden = r.temGerentes;
+    $("p-table-title").textContent = "Ações por produto — " + periodLabel(pState);
+
+    function cell(n){ return '<td class="' + (n ? "" : "zero") + '">' + n + '</td>'; }
+    function linha(nome, b, cls){
+      return '<tr' + (cls ? ' class="' + cls + '"' : '') + '><td class="produto-nome">' + renderEscaped(nome) + '</td>' +
+        cell(b.visitas) + cell(b.treinamentos) + cell(b.propostas) + cell(b.vendas) + '</tr>';
+    }
+    var rows = r.nomes.map(function(nome){ return linha(nome, r.porProduto[nome]); }).join("");
+    var totalRow = linha("Total", r.total, "is-total");
+    var wrap = $("p-table");
+    wrap.innerHTML = r.nomes.length ?
+      '<table class="prod-table"><thead><tr><th>Produto</th><th>Visitas</th><th>Treinamentos</th><th>Propostas</th><th>Vendas</th></tr></thead>' +
+      '<tbody>' + rows + totalRow + '</tbody></table>' :
+      '<p class="empty">Sem produtos cadastrados em data/config.json.</p>';
+    // sombra de "tem mais pra esse lado" só quando a tabela não cabe inteira
+    // na largura da tela (típico no celular) — recalcula depois do innerHTML
+    // acima já ter aplicado layout.
+    requestAnimationFrame(function(){
+      wrap.classList.toggle("has-overflow", wrap.scrollWidth > wrap.clientWidth + 1);
+    });
+  }
+
+  // ---------- "Exportar imagem" — funciona em qualquer aba aberta (gerente ou diretor) ----------
+  function slugArquivo_(s){
+    var r = String(s || "").toLowerCase()
+      .normalize("NFD").replace(/[̀-ͯ]/g, "")
+      .replace(/[^a-z0-9]+/g, "-").replace(/(^-+|-+$)/g, "");
+    return r || "painel";
+  }
+  // acha a <section> visível de dentro de quem estiver logado agora (gerente ou
+  // diretor) e o nome da aba selecionada — exporta sempre "o que está na tela",
+  // não um card fixo, porque o usuário pode estar em qualquer uma das abas.
+  function abaAtivaParaExportar_(){
+    var view = null;
+    if (!$("view-diretor").hidden) view = $("view-diretor");
+    else if (!$("view-gerente").hidden) view = $("view-gerente");
+    if (!view) return null;
+    var secoes = view.querySelectorAll(":scope > section");
+    var ativa = null;
+    secoes.forEach(function(sec){ if (!sec.hidden) ativa = sec; });
+    if (!ativa) return null;
+    var label = "painel";
+    var tabAtiva = view.querySelector('.tabs .tab[aria-selected="true"]');
+    if (tabAtiva && tabAtiva.textContent) label = tabAtiva.textContent.trim();
+    return { section: ativa, label: label };
+  }
+  function exportarAbaComoImagem(){
+    var btn = $("export-img-btn");
+    if (typeof html2canvas !== "function"){
+      toast("Não foi possível carregar a ferramenta de exportação. Verifique sua conexão e tente de novo.");
+      return;
+    }
+    var alvo = abaAtivaParaExportar_();
+    if (!alvo){ toast("Não foi possível identificar o que exportar."); return; }
+    var textoOriginal = btn.textContent;
+    btn.disabled = true; btn.textContent = "Gerando…";
+    var bg = getComputedStyle(document.body).backgroundColor || "#f7f4f0";
+    function restaurarBotao(){ btn.disabled = false; btn.textContent = textoOriginal; }
+    html2canvas(alvo.section, { backgroundColor: bg, scale: 2, useCORS: true }).then(function(canvas){
+      canvas.toBlob(function(blob){
+        if (!blob){ toast("Não foi possível gerar a imagem."); restaurarBotao(); return; }
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement("a");
+        a.href = url;
+        a.download = "painel-parcerias-" + slugArquivo_(alvo.label) + "-" + todayISO() + ".png";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
+        restaurarBotao();
+      }, "image/png");
+    }).catch(function(){
+      toast("Não foi possível gerar a imagem. Tente de novo.");
+      restaurarBotao();
+    });
   }
 
   function slugify(nome){
@@ -764,6 +1054,12 @@
           parent.querySelectorAll(":scope > section").forEach(function(sec){
             sec.hidden = sec.id !== tab.dataset.tab;
           });
+          // a aba "Produtos" mede a largura da tabela pra decidir se mostra a
+          // sombra de "arrasta pro lado" — enquanto a aba está escondida
+          // (hidden), scrollWidth/clientWidth dão os dois 0, então a medição
+          // de quando ela foi renderizada (ainda escondida) não vale nada;
+          // refaz agora que a aba realmente ficou visível.
+          if (tab.dataset.tab === "d-produtos" && typeof renderProdutosTable === "function") renderProdutosTable();
         });
       });
     });
@@ -780,7 +1076,7 @@
         me = null; enteredAs = null;
         try { sessionStorage.removeItem("painel-me"); } catch(e){}
         hide($("view-login")); hide($("view-gerente")); hide($("view-diretor"));
-        $("role-badge").hidden = true; $("logout-btn").hidden = true;
+        $("role-badge").hidden = true; $("logout-btn").hidden = true; $("export-img-btn").hidden = true;
         show($("view-setup"));
         return;
       }
@@ -793,14 +1089,14 @@
       if (!me){
         enteredAs = null;
         hide($("view-setup")); hide($("view-gerente")); hide($("view-diretor"));
-        $("role-badge").hidden = true; $("logout-btn").hidden = true;
+        $("role-badge").hidden = true; $("logout-btn").hidden = true; $("export-img-btn").hidden = true;
         populateLoginSelect();
         show($("view-login"));
         return;
       }
 
       hide($("view-setup")); hide($("view-login"));
-      $("role-badge").hidden = false; $("logout-btn").hidden = false;
+      $("role-badge").hidden = false; $("logout-btn").hidden = false; $("export-img-btn").hidden = false;
 
       if (me.id !== enteredAs){
         enteredAs = me.id;
@@ -811,6 +1107,7 @@
         syncGerenteEntrySubscriptions();
         renderGerentesList();
         populateCorretoresFiltro();
+        populateIndividualGerenteSelect();
         watchCorretoresAll();
       }
     }, function(){ toast("Não foi possível carregar os logins."); });
@@ -929,6 +1226,24 @@
 
     wirePeriodPills("r-period-pills", "r-custom-range", rState, renderResumoExecutivo);
     wireCustomRange("r-start", "r-end", rState, renderResumoExecutivo);
+
+    $("i-gerente").addEventListener("change", function(){
+      iState.gerenteId = $("i-gerente").value;
+      renderIndividualGerente();
+    });
+    wirePeriodPills("i-period-pills", "i-custom-range", iState, renderIndividualGerente);
+    wireCustomRange("i-start", "i-end", iState, renderIndividualGerente);
+    $("i-ver-corretores-btn").addEventListener("click", function(){
+      dCorretoresFiltro = iState.gerenteId || "";
+      var selFiltro = $("d-corretores-filtro");
+      if (selFiltro) selFiltro.value = dCorretoresFiltro;
+      renderDiretorCorretores();
+      var tabCorretores = document.querySelector('#view-diretor > .tabs .tab[data-tab="d-corretores"]');
+      if (tabCorretores) tabCorretores.click();
+    });
+
+    wirePeriodPills("p-period-pills", "p-custom-range", pState, renderProdutosTable);
+    wireCustomRange("p-start", "p-end", pState, renderProdutosTable);
     $("r-copy-btn").addEventListener("click", function(){
       var texto = $("r-text-preview").textContent;
       function okToast(){ toast("Texto copiado."); }
@@ -945,6 +1260,8 @@
         fallbackCopy();
       }
     });
+
+    $("export-img-btn").addEventListener("click", exportarAbaComoImagem);
   }
 
   // delega o clique/Enter/Espaço nos cards de total (Visitas/Treinamentos/
@@ -976,20 +1293,20 @@
     var ids = Object.keys(logins);
     if (!ids.length){
       hide($("view-login")); hide($("view-gerente")); hide($("view-diretor"));
-      $("role-badge").hidden = true; $("logout-btn").hidden = true;
+      $("role-badge").hidden = true; $("logout-btn").hidden = true; $("export-img-btn").hidden = true;
       show($("view-setup"));
       return;
     }
     if (!me){
       enteredAs = null;
       hide($("view-setup")); hide($("view-gerente")); hide($("view-diretor"));
-      $("role-badge").hidden = true; $("logout-btn").hidden = true;
+      $("role-badge").hidden = true; $("logout-btn").hidden = true; $("export-img-btn").hidden = true;
       populateLoginSelect();
       show($("view-login"));
       return;
     }
     hide($("view-setup")); hide($("view-login"));
-    $("role-badge").hidden = false; $("logout-btn").hidden = false;
+    $("role-badge").hidden = false; $("logout-btn").hidden = false; $("export-img-btn").hidden = false;
     if (me.id !== enteredAs){
       enteredAs = me.id;
       enterApp();
@@ -1030,6 +1347,34 @@
   }
 
   // ---------- gerente view ----------
+  // Propostas desse gerente que ainda não foram vinculadas a nenhuma venda —
+  // usado pra popular o "isso veio de uma proposta já registrada?" na hora de
+  // lançar uma Venda (ver f-conversao abaixo). `entries` deve ser a lista
+  // completa (sem filtro de período), senão uma proposta de outro período
+  // nem aparece como opção.
+  function propostasAbertas_(entries){
+    var convertidas = {};
+    entries.forEach(function(e){
+      if (e.tipo === "Venda - Venda" && e.convertidaDeProposta) convertidas[e.convertidaDeProposta] = true;
+    });
+    return entries.filter(function(e){ return e.tipo === "Venda - Proposta" && e.criadoEm && !convertidas[e.criadoEm]; })
+      .sort(function(a,b){ return (b.data||"").localeCompare(a.data||""); });
+  }
+  function populateConversaoSelect_(){
+    var sel = $("f-conversao");
+    if (!sel) return;
+    var current = sel.value;
+    var abertas = propostasAbertas_(myEntriesRaw);
+    sel.innerHTML = '<option value="">Não / proposta não estava no Painel</option>';
+    abertas.forEach(function(e){
+      var opt = document.createElement("option");
+      opt.value = e.criadoEm;
+      opt.textContent = fmtDM(e.data) + " · " + (e.parceiro || "sem parceiro") + " · " + (e.estoque || "—") +
+        (typeof e.vgv === "number" ? " · " + fmtBRL(e.vgv) : "");
+      sel.appendChild(opt);
+    });
+    if (abertas.some(function(e){ return e.criadoEm === current; })) sel.value = current;
+  }
   function enterGerenteView(){
     $("f-data").value = todayISO();
     if (!formWired){
@@ -1047,6 +1392,11 @@
         if (!showVgv) $("f-vgv").value = "";
         if (isVenda) $("f-vgv-label").textContent = "VGV da venda (R$)";
         else if (isProposta) $("f-vgv-label").textContent = "VGV estimado da proposta (R$)";
+
+        // só faz sentido vincular numa Venda — uma Proposta não "converte" nada
+        if ($("f-conversao-wrap")) $("f-conversao-wrap").hidden = !isVenda;
+        if (isVenda) populateConversaoSelect_();
+        else if ($("f-conversao")) $("f-conversao").value = "";
       });
       $("entry-form").addEventListener("submit", function(ev){
         ev.preventDefault();
@@ -1077,12 +1427,17 @@
           var vgvVal = parseFloat(vgvRaw);
           entry.vgv = (isNaN(vgvVal) || vgvVal < 0) ? 0 : vgvVal;
         }
+        if (tipo === "Venda - Venda" && $("f-conversao") && $("f-conversao").value){
+          entry.convertidaDeProposta = $("f-conversao").value;
+        }
         db.collection("registros/" + me.id + "/entries").add(entry).then(function(){
           toast("Registrado.");
           $("f-tipo").value = ""; $("f-estoque").value = "";
           $("f-primeira").disabled = false;
           $("f-primeira").value = "Primeira vez"; $("f-parceiro").value = ""; $("f-obs").value = "";
           $("f-vgv-wrap").hidden = true; $("f-vgv").value = "";
+          if ($("f-conversao-wrap")) $("f-conversao-wrap").hidden = true;
+          if ($("f-conversao")) $("f-conversao").value = "";
           btn.disabled = false;
         }).catch(function(){
           toast("Não foi possível registrar. Tente de novo.");
@@ -1096,6 +1451,9 @@
       myEntriesRaw = snap.docs.map(function(d){ return d.data(); });
       renderMeAll();
       renderMeLog(myEntriesRaw);
+      // se o form estiver aberto numa Venda, mantém a lista de propostas em
+      // aberto atualizada (ex.: uma proposta nova chegou de outra sessão)
+      if ($("f-tipo").value === "Venda - Venda") populateConversaoSelect_();
     }, function(){ toast("Não foi possível carregar seus registros."); });
 
     if (unsubMyCorretores){ try{ unsubMyCorretores(); }catch(e){} }
@@ -1132,8 +1490,8 @@
   }
 
   function renderMeTotals(entries, prevEntries, bounds){
-    var t = computeTotals(entries);
-    var pt = computeTotals(prevEntries || []);
+    var t = computeTotals(entries, myEntriesRaw);
+    var pt = computeTotals(prevEntries || [], myEntriesRaw);
     var spark = function(pred, colorVar){ return sparklineSVG(dailyCounts(entries.filter(pred), bounds).map(function(d){ return d.value; }), colorVar); };
     var sel = meState.pilarSel;
     var cadAtual = myCorretoresRaw.filter(function(c){ return corretorInBounds_(c, bounds); }).length;
@@ -1151,7 +1509,7 @@
     $("me-vgv-hero").innerHTML = heroKpi(
       fmtBRL(t.vgv),
       deltaBadge(t.vgv, pt.vgv),
-      heroMini(t.vendas, "Vendas") + heroMini(fmtBRL(ticket), "Ticket médio") + heroMini(fmtBRL(t.vgvPropostas), "Potencial em propostas")
+      heroMini(t.vendas, "Vendas") + heroMini(fmtBRL(ticket), "Ticket médio") + heroMini(fmtBRL(t.vgvPropostas), "Potencial em propostas abertas")
     );
   }
 
@@ -1280,6 +1638,7 @@
       allCorretoresRaw = snap.docs.map(function(d){ return d.data(); });
       renderDiretorCorretores();
       renderDiretorDashboard(); // o KPI "Cadastros" nos Totais do time também depende disso
+      renderIndividualGerente(); // o bloco "Corretores dele" também depende disso
     }, function(){ toast("Não foi possível carregar os corretores."); });
   }
 
@@ -1338,6 +1697,8 @@
         entriesByGerente[id] = esnap.docs.map(function(d){ return d.data(); });
         renderDiretorDashboard();
         renderResumoExecutivo();
+        renderIndividualGerente();
+        renderProdutosTable();
         renderTeamLog();
       });
     });
@@ -1351,6 +1712,9 @@
     renderGerenteChips();
     renderDiretorDashboard();
     renderResumoExecutivo();
+    populateIndividualGerenteSelect();
+    renderIndividualGerente();
+    renderProdutosTable();
     renderTeamLog();
   }
 
@@ -1405,11 +1769,12 @@
     var pilarPred = (sel && PILAR_FILTERS[sel]) ? PILAR_FILTERS[sel].pred : null;
     var ranked = [], grouped = [], allFiltered = [];
     ids.forEach(function(id){
-      var filtered = filterEntries(entriesByGerente[id] || [], bounds, dState.estoque);
-      var t = computeTotals(filtered);
+      var raw = entriesByGerente[id] || [];
+      var filtered = filterEntries(raw, bounds, dState.estoque);
+      var t = computeTotals(filtered, raw);
       agg.visitas += t.visitas; agg.treinamentos += t.treinamentos;
       agg.propostas += t.propostas; agg.vendas += t.vendas; agg.vgv += t.vgv; agg.vgvPropostas += t.vgvPropostas;
-      var prevT = computeTotals(filterEntries(entriesByGerente[id] || [], prevBounds, dState.estoque));
+      var prevT = computeTotals(filterEntries(raw, prevBounds, dState.estoque), raw);
       prevAgg.visitas += prevT.visitas; prevAgg.treinamentos += prevT.treinamentos;
       prevAgg.propostas += prevT.propostas; prevAgg.vendas += prevT.vendas; prevAgg.vgv += prevT.vgv; prevAgg.vgvPropostas += prevT.vgvPropostas;
       var nome = (logins[id] || {}).nome || id;
@@ -1448,7 +1813,7 @@
     $("d-vgv-hero").innerHTML = heroKpi(
       fmtBRL(agg.vgv),
       deltaBadge(agg.vgv, prevAgg.vgv),
-      heroMini(agg.vendas, "Vendas") + heroMini(fmtBRL(ticket), "Ticket médio") + heroMini(fmtBRL(agg.vgvPropostas), "Potencial em propostas")
+      heroMini(agg.vendas, "Vendas") + heroMini(fmtBRL(ticket), "Ticket médio") + heroMini(fmtBRL(agg.vgvPropostas), "Potencial em propostas abertas")
     );
 
     if (sel && PILAR_FILTERS[sel]){

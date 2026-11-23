@@ -114,7 +114,7 @@
                 <select id="f-estoque" required>
                   <option value="" disabled selected>Escolha…</option>
                   <option>Uapé</option><option>Esquina</option><option>155</option>
-                  <option>Zip</option><option>Jesuíno</option><option>Lorena</option><option>Outro</option>
+                  <option>Zip</option><option>Jesuíno</option><option>Lorena</option><option>Camino</option><option>Outro</option>
                 </select>
               </div>
               <div>
@@ -128,6 +128,14 @@
             <div id="f-vgv-wrap" hidden>
               <label for="f-vgv" id="f-vgv-label">VGV da venda (R$)</label>
               <input type="number" id="f-vgv" min="0" step="1000" placeholder="Ex: 350000">
+            </div>
+
+            <div id="f-conversao-wrap" hidden>
+              <label for="f-conversao">Isso veio de uma proposta já registrada? (opcional)</label>
+              <select id="f-conversao">
+                <option value="">Não / proposta não estava no Painel</option>
+              </select>
+              <p class="hint" style="margin-top:4px">Vinculando, essa proposta sai do "potencial em propostas abertas" — ela já virou venda.</p>
             </div>
 
             <label for="f-parceiro">Parceiro/Imobiliária</label>
@@ -215,6 +223,8 @@
         </div>
         <button class="tab" data-tab="d-visao" aria-selected="true">Visão geral</button>
         <button class="tab" data-tab="d-resumo" aria-selected="false">Resumo</button>
+        <button class="tab" data-tab="d-individual" aria-selected="false">Individual</button>
+        <button class="tab" data-tab="d-produtos" aria-selected="false">Produtos</button>
         <button class="tab" data-tab="d-atividade" aria-selected="false">Atividade recente</button>
         <button class="tab" data-tab="d-corretores" aria-selected="false">Corretores</button>
         <button class="tab" data-tab="d-metas" aria-selected="false">Metas</button>
@@ -250,7 +260,7 @@
               <select id="d-estoque-filter">
                 <option value="">Todos</option>
                 <option>Uapé</option><option>Esquina</option><option>155</option>
-                <option>Zip</option><option>Jesuíno</option><option>Lorena</option><option>Outro</option>
+                <option>Zip</option><option>Jesuíno</option><option>Lorena</option><option>Camino</option><option>Outro</option>
               </select>
             </div>
           </div>
@@ -331,6 +341,86 @@
           <p class="hint">Mesmo conteúdo de cima, em texto corrido — pra colar direto numa mensagem.</p>
           <pre id="r-text-preview" class="resumo-text"></pre>
           <button class="btn secondary btn-sm" id="r-copy-btn" style="margin-top:10px">Copiar texto</button>
+        </div>
+      </section>
+
+      <section id="d-individual" hidden>
+        <div class="card" id="i-empty" hidden>
+          <p class="empty">Ainda não há gerentes cadastrados. Vá na aba "Gerentes" para adicionar o time.</p>
+        </div>
+
+        <div class="card" id="i-filtros-card">
+          <h2>Gerente e período</h2>
+          <div class="filters-row">
+            <div>
+              <div class="filters-label">Gerente</div>
+              <select id="i-gerente"></select>
+            </div>
+            <div>
+              <div class="filters-label">Período</div>
+              <div class="pill-row" id="i-period-pills">
+                <button type="button" class="pill-btn" data-period="semana" aria-pressed="true">Semana atual</button>
+                <button type="button" class="pill-btn" data-period="mes" aria-pressed="false">Mês atual</button>
+                <button type="button" class="pill-btn" data-period="custom" aria-pressed="false">Personalizado</button>
+              </div>
+              <div class="custom-range" id="i-custom-range">
+                <div><label for="i-start">De</label><input type="date" id="i-start"></div>
+                <div><label for="i-end">Até</label><input type="date" id="i-end"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2 id="i-vgv-title">VGV no período</h2>
+          <div id="i-vgv-hero"></div>
+        </div>
+
+        <div class="card">
+          <h2 id="i-kpi-title">Totais — semana atual</h2>
+          <p class="hint">A linha menor embaixo de cada número é a média do time inteiro no mesmo período, pra comparar.</p>
+          <div class="stat-grid" id="i-kpi"></div>
+        </div>
+
+        <div class="card viz-card">
+          <h2>Tendência — últimas 8 semanas</h2>
+          <p class="hint">Independente do período escolhido acima — mostra sempre as últimas 8 semanas, pra ver se ele está melhorando, piorando ou estável.</p>
+          <div id="i-trend-chart"></div>
+        </div>
+
+        <div class="card">
+          <h2>Funil de conversão</h2>
+          <p class="hint">Visitas + treinamentos → propostas → vendas, com a taxa de conversão entre cada etapa.</p>
+          <div id="i-funil"></div>
+        </div>
+
+        <div class="card">
+          <h2>Corretores dele</h2>
+          <div class="stat-grid" id="i-corretores-resumo"></div>
+          <button class="btn secondary btn-sm" id="i-ver-corretores-btn" style="margin-top:12px">Ver lista completa</button>
+        </div>
+      </section>
+
+      <section id="d-produtos" hidden>
+        <div class="card" id="p-empty" hidden>
+          <p class="empty">Ainda não há gerentes cadastrados. Vá na aba "Gerentes" para adicionar o time.</p>
+        </div>
+        <div class="card">
+          <h2>Período</h2>
+          <div class="pill-row" id="p-period-pills">
+            <button type="button" class="pill-btn" data-period="semana" aria-pressed="true">Semana atual</button>
+            <button type="button" class="pill-btn" data-period="mes" aria-pressed="false">Mês atual</button>
+            <button type="button" class="pill-btn" data-period="custom" aria-pressed="false">Personalizado</button>
+          </div>
+          <div class="custom-range" id="p-custom-range">
+            <div><label for="p-start">De</label><input type="date" id="p-start"></div>
+            <div><label for="p-end">Até</label><input type="date" id="p-end"></div>
+          </div>
+        </div>
+        <div class="card">
+          <h2 id="p-table-title">Ações por produto — semana atual</h2>
+          <p class="hint">Time inteiro, sem filtro de gerente — os mesmos 4 pilares de sempre, agora agrupados por produto/lançamento em vez de por gerente.</p>
+          <div class="table-wrap" id="p-table"></div>
         </div>
       </section>
 
