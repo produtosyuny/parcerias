@@ -97,6 +97,25 @@
             notifyCollection(path);
             resolve({ id: id });
           });
+        },
+        // editar/excluir um registro pelo "criadoEm" (mesma interface do db-sheets.js v2)
+        update: function (criadoEm, patch) {
+          return new Promise(function (resolve, reject) {
+            var c = getColl(path), achou = null;
+            Object.keys(c).forEach(function (id) { if (c[id] && c[id].criadoEm === criadoEm) achou = id; });
+            if (!achou) return reject(new Error("registro não encontrado"));
+            Object.keys(patch).forEach(function (k) { c[achou][k] = patch[k]; });
+            saveStore(store); notifyCollection(path); resolve({ ok: true });
+          });
+        },
+        remove: function (criadoEm) {
+          return new Promise(function (resolve, reject) {
+            var c = getColl(path), achou = null;
+            Object.keys(c).forEach(function (id) { if (c[id] && c[id].criadoEm === criadoEm) achou = id; });
+            if (!achou) return reject(new Error("registro não encontrado"));
+            delete c[achou];
+            saveStore(store); notifyCollection(path); resolve({ ok: true });
+          });
         }
       };
     }
@@ -149,7 +168,21 @@
       };
     }
 
-    return { collection: collection, doc: doc };
+    // modo de teste: confere a senha aqui mesmo, no navegador
+    var sess = null;
+    var auth = {
+      setSession: function (x) { sess = x || null; },
+      hasSession: function () { return !!sess; },
+      login: function (id, senha) {
+        var l = getColl("login")[id];
+        if (!l || l.senha !== senha){ var e = new Error("senha"); e.code = "senha"; return Promise.reject(e); }
+        sess = "local-" + id;
+        return Promise.resolve({ ok: true, sess: sess, id: id, nome: l.nome, papel: l.papel });
+      },
+      logout: function () { sess = null; return Promise.resolve(); },
+      setupDiretor: function (senha) { return doc("login/diretor").set({ nome: "Diretor", senha: senha, papel: "diretor" }); }
+    };
+    return { collection: collection, doc: doc, auth: auth };
   }
 
   global.PainelDB = {

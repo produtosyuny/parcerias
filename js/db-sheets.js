@@ -1,93 +1,94 @@
-/* db-sheets.js
+/* db-sheets.js — v2 (24/11/2026)
  * ---------------------------------------------------------------------
- * Camada de dados que fala com a planilha Google Sheets (via Apps Script
- * Web App) em vez do localStorage. Implementa a MESMA interface que
- * js/db-local.js (collection()/doc() com onSnapshot/add/set/update/delete),
- * então js/app.js e index.html não precisam mudar — só a tag
- * <script src="js/db-local.js"> em index.html precisa trocar para
- * <script src="js/db-sheets.js">.
+ * Camada de dados que fala com a planilha Google Sheets via Apps Script
+ * (Code.gs v2). Mesma interface de antes (collection()/doc() com
+ * onSnapshot/add/set/update/delete) + duas coisas novas:
  *
- * Como não existe "tempo real" de verdade aqui (o Apps Script não avisa o
- * navegador quando algo muda), cada onSnapshot busca os dados de novo a
- * cada poucos segundos (polling) — suficiente para um time pequeno. Depois
- * de qualquer escrita (add/set/update/delete), todas as "assinaturas" ativas
- * são atualizadas na hora, sem esperar o próximo ciclo.
+ *  - db.auth: login / logout / criar o Diretor. Não existe mais token fixo
+ *    no site: cada pessoa recebe uma SESSÃO própria do servidor quando entra
+ *    com a senha, e toda chamada leva essa sessão. Se a sessão cair (senha
+ *    trocada, 30 dias sem uso, login removido), PainelDB.onAuthError avisa o
+ *    app, que volta pra tela de login.
+ *  - collection("registros/<id>/entries").update(criadoEm, patch) e
+ *    .remove(criadoEm): editar e excluir um registro.
  *
- * Configuração: data/config.json precisa ter "sheetsWebAppUrl" (a URL do
- * Apps Script publicado como Web App) e "sheetsToken" (o mesmo valor da
- * variável TOKEN em Code.gs). Veja o README para o passo a passo.
+ * Atualização: busca os dados de novo a cada 20 s, e PARA de buscar quando a
+ * aba do navegador está em segundo plano (economiza a cota do Google).
+ * Depois de qualquer gravação, atualiza tudo na hora.
  * ---------------------------------------------------------------------
  */
 (function (global) {
   "use strict";
 
-  var POLL_MS = 4000;
-  var CONNECT_TIMEOUT_MS = 8000;
+  var POLL_MS = 20000;
+  var CONNECT_TIMEOUT_MS = 9000;
 
   var WEB_APP_URL = null;
-  var TOKEN = null;
+  var SESS = null;
 
-  var activePollers = []; // { tick: fn }
+  var activePollers = [];
   function pokeAll() {
     activePollers.slice().forEach(function (p) { try { p.tick(); } catch (e) {} });
   }
+  document.addEventListener("visibilitychange", function () {
+    if (document.visibilityState === "visible") pokeAll(); // voltou pra aba: atualiza na hora
+  });
 
-  function withTimeout(promise, ms) {
-    var controller = (typeof AbortController !== "undefined") ? new AbortController() : null;
-    var timer = setTimeout(function () { if (controller) controller.abort(); }, ms);
-    return { promise: promise(controller && controller.signal), clear: function () { clearTimeout(timer); } };
+  function tratar(json) {
+    if (json && json.error) {
+      if (json.error === "auth" && typeof global.PainelDB.onAuthError === "function") global.PainelDB.onAuthError();
+      var err = new Error(json.msg || json.error);
+      err.code = json.error;
+      throw err;
+    }
+    return json;
   }
 
   function apiGet(action, params) {
-    var qs = "action=" + encodeURIComponent(action) + "&token=" + encodeURIComponent(TOKEN);
+    var qs = "action=" + encodeURIComponent(action) + (SESS ? "&sess=" + encodeURIComponent(SESS) : "");
     Object.keys(params || {}).forEach(function (k) {
       qs += "&" + encodeURIComponent(k) + "=" + encodeURIComponent(params[k]);
     });
     return fetch(WEB_APP_URL + "?" + qs).then(function (res) {
       if (!res.ok) throw new Error("HTTP " + res.status);
       return res.json();
-    }).then(function (json) {
-      if (json && json.error) throw new Error(json.error);
-      return json;
-    });
+    }).then(tratar);
   }
 
-  function apiPost(action, payload) {
-    var body = Object.assign({ action: action, token: TOKEN }, payload || {});
+  function apiPost(action, payload, semPoke) {
+    var body = Object.assign({ action: action, sess: SESS }, payload || {});
     return fetch(WEB_APP_URL, {
       method: "POST",
-      // text/plain evita o preflight CORS (OPTIONS), que o Apps Script não
-      // responde bem — o próprio Code.gs lê o corpo como JSON de qualquer jeito.
+      // text/plain evita o preflight CORS (OPTIONS), que o Apps Script não responde
       headers: { "Content-Type": "text/plain;charset=utf-8" },
       body: JSON.stringify(body)
     }).then(function (res) {
       if (!res.ok) throw new Error("HTTP " + res.status);
       return res.json();
-    }).then(function (json) {
-      if (json && json.error) throw new Error(json.error);
-      pokeAll();
+    }).then(tratar).then(function (json) {
+      if (!semPoke) pokeAll();
       return json;
     });
   }
 
-  function makePoller(fetchFn, buildSnap) {
+  function makePoller(fetchFn, buildSnap, precisaSessao) {
     return {
       onSnapshot: function (cb, errCb) {
-        var stopped = false;
-        var hadFirstResult = false;
-        var lastValue = null;
+        var stopped = false, hadFirstResult = false, emVoo = false;
         function tick() {
+          if (stopped || emVoo) return;
+          if (precisaSessao && !SESS) return;
+          if (hadFirstResult && document.visibilityState === "hidden") return;
+          emVoo = true;
           fetchFn().then(function (value) {
+            emVoo = false;
             if (stopped) return;
             hadFirstResult = true;
-            lastValue = value;
             cb(buildSnap(value));
           }).catch(function (err) {
+            emVoo = false;
             if (stopped) return;
-            if (!hadFirstResult && errCb) errCb(err);
-            // falha passageira (rede/sheets instável): mantém o último valor
-            // conhecido e tenta de novo no próximo ciclo, sem incomodar com
-            // toasts repetidos.
+            if (!hadFirstResult && errCb && (!err || err.code !== "auth")) errCb(err);
           });
         }
         var entry = { tick: tick };
@@ -104,61 +105,37 @@
     };
   }
 
+  function listaDocs(list, prefixo) {
+    return { docs: (list || []).map(function (x, i) { return { id: x.id || (prefixo + i), data: function () { return x; } }; }) };
+  }
+
   function collection(path) {
-    var m;
     if (path === "login") {
-      var poller = makePoller(
-        function () { return apiGet("listLogins"); },
-        function (list) {
-          return { docs: (list || []).map(function (l) { return { id: l.id, data: function () { return l; } }; }) };
-        }
-      );
-      return {
-        onSnapshot: poller.onSnapshot,
-        add: function (obj) {
-          var id = "id" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
-          return apiPost("setLogin", { id: id, data: obj }).then(function () { return { id: id }; });
-        }
-      };
+      var poller = makePoller(function () { return apiGet("listLogins"); }, function (l) { return listaDocs(l, "l"); }, false);
+      return { onSnapshot: poller.onSnapshot };
     }
 
-    // corretores cadastrados no Portal Parcerias — "corretores" (sem filtro,
-    // uso do diretor: vêm com gerenteId/gerenteNome já casados por nome) ou
-    // "corretores/<id-do-gerente>" (só os dele).
     if (path === "corretores" || /^corretores\/(.+)$/.test(path)) {
       var cm = path.match(/^corretores\/(.+)$/);
       var gid = cm ? cm[1] : null;
-      var pollerC = makePoller(
-        function () { return apiGet("listCorretores", gid ? { gerenteId: gid } : {}); },
-        function (list) {
-          return { docs: (list || []).map(function (c, i) { return { id: "c" + i, data: function () { return c; } }; }) };
-        }
-      );
-      return {
-        onSnapshot: pollerC.onSnapshot,
-        add: function () { return Promise.reject(new Error("corretores são cadastrados pelo Portal, não pelo Painel")); }
-      };
+      var pollerC = makePoller(function () { return apiGet("listCorretores", gid ? { gerenteId: gid } : {}); },
+        function (l) { return listaDocs(l, "c"); }, true);
+      return { onSnapshot: pollerC.onSnapshot };
     }
 
-    m = path.match(/^registros\/(.+)\/entries$/);
+    var m = path.match(/^registros\/(.+)\/entries$/);
     if (m) {
       var gerenteId = m[1];
-      var poller2 = makePoller(
-        function () { return apiGet("listEntries", { gerenteId: gerenteId }); },
-        function (list) {
-          return { docs: (list || []).map(function (entry, i) { return { id: "r" + i, data: function () { return entry; } }; }) };
-        }
-      );
+      var poller2 = makePoller(function () { return apiGet("listEntries", { gerenteId: gerenteId }); },
+        function (l) { return listaDocs(l, "r"); }, true);
       return {
         onSnapshot: poller2.onSnapshot,
-        add: function (entry) {
-          return apiPost("addEntry", { gerenteId: gerenteId, entry: entry }).then(function () { return { id: "new" }; });
-        }
+        add: function (entry) { return apiPost("addEntry", { gerenteId: gerenteId, entry: entry }).then(function () { return { id: "new" }; }); },
+        update: function (criadoEm, patch) { return apiPost("updateEntry", { gerenteId: gerenteId, id: criadoEm, patch: patch }); },
+        remove: function (criadoEm) { return apiPost("deleteEntry", { gerenteId: gerenteId, id: criadoEm }); }
       };
     }
 
-    // caminho não usado por js/app.js — devolve uma coleção vazia e inerte
-    // em vez de travar a página, caso algo chame isso no futuro.
     return {
       onSnapshot: function (cb) { setTimeout(function () { cb({ docs: [] }); }, 0); return function () {}; },
       add: function () { return Promise.reject(new Error("collection não suportada: " + path)); }
@@ -167,41 +144,24 @@
 
   function doc(path) {
     if (path === "config/metas") {
-      var poller = makePoller(
-        function () { return apiGet("getMetas"); },
-        function (metas) { return { exists: true, data: function () { return metas; } }; }
-      );
+      var poller = makePoller(function () { return apiGet("getMetas"); },
+        function (metas) { return { exists: true, data: function () { return metas; } }; }, true);
       return {
         onSnapshot: poller.onSnapshot,
         set: function (obj) { return apiPost("setMetas", { metas: obj }); },
-        update: function (patch) {
-          return apiGet("getMetas").then(function (cur) {
-            var next = Object.assign({}, cur, patch);
-            return apiPost("setMetas", { metas: next });
-          });
-        },
+        update: function (patch) { return apiPost("setMetas", { metas: patch }); },
         delete: function () { return Promise.resolve(); }
       };
     }
-
     var m = path.match(/^login\/(.+)$/);
     if (m) {
       var id = m[1];
-      var poller2 = makePoller(
-        function () { return apiGet("listLogins"); },
-        function (list) {
-          var found = (list || []).filter(function (l) { return l.id === id; })[0];
-          return { exists: !!found, data: function () { return found; } };
-        }
-      );
       return {
-        onSnapshot: poller2.onSnapshot,
         set: function (obj) { return apiPost("setLogin", { id: id, data: obj }); },
         update: function (patch) { return apiPost("updateLogin", { id: id, patch: patch }); },
         delete: function () { return apiPost("deleteLogin", { id: id }); }
       };
     }
-
     return {
       onSnapshot: function (cb) { setTimeout(function () { cb({ exists: false, data: function () { return null; } }); }, 0); return function () {}; },
       set: function () { return Promise.reject(new Error("doc não suportado: " + path)); },
@@ -210,28 +170,39 @@
     };
   }
 
+  var auth = {
+    setSession: function (s) { SESS = s || null; if (SESS) pokeAll(); },
+    hasSession: function () { return !!SESS; },
+    login: function (id, senha) {
+      return apiPost("login", { id: id, senha: senha }, true).then(function (r) { SESS = r.sess; pokeAll(); return r; });
+    },
+    logout: function () {
+      var s = SESS; SESS = null;
+      if (!s) return Promise.resolve();
+      return apiPost("logout", { sess: s }, true).catch(function () {});
+    },
+    setupDiretor: function (senha) { return apiPost("setupDiretor", { senha: senha }); }
+  };
+
   global.PainelDB = {
+    onAuthError: null,
     create: function () {
       return fetch("data/config.json").then(function (res) { return res.json(); }).then(function (cfg) {
         WEB_APP_URL = cfg.sheetsWebAppUrl;
-        TOKEN = cfg.sheetsToken;
-        if (!WEB_APP_URL || !TOKEN) {
-          console.error("db-sheets: faltam sheetsWebAppUrl/sheetsToken em data/config.json");
-          return null;
-        }
-        var t = withTimeout(function (signal) {
-          return fetch(WEB_APP_URL + "?action=getMetas&token=" + encodeURIComponent(TOKEN), { signal: signal })
-            .then(function (res) { return res.json(); });
-        }, CONNECT_TIMEOUT_MS);
-        return t.promise.then(function (json) {
-          t.clear();
-          if (json && json.error) { console.error("db-sheets: " + json.error); return null; }
-          return { collection: collection, doc: doc };
-        }).catch(function (err) {
-          t.clear();
-          console.error("db-sheets: não foi possível conectar ao Apps Script.", err);
-          return null;
-        });
+        if (!WEB_APP_URL) { console.error("db-sheets: falta sheetsWebAppUrl em data/config.json"); return null; }
+        var controller = (typeof AbortController !== "undefined") ? new AbortController() : null;
+        var timer = setTimeout(function () { if (controller) controller.abort(); }, CONNECT_TIMEOUT_MS);
+        return fetch(WEB_APP_URL + "?action=listLogins", controller ? { signal: controller.signal } : {})
+          .then(function (res) { return res.json(); })
+          .then(function (json) {
+            clearTimeout(timer);
+            if (json && json.error) { console.error("db-sheets: " + json.error + " — o Code.gs da planilha é a versão 2?"); return null; }
+            return { collection: collection, doc: doc, auth: auth };
+          }).catch(function (err) {
+            clearTimeout(timer);
+            console.error("db-sheets: não foi possível conectar ao Apps Script.", err);
+            return null;
+          });
       }).catch(function (err) {
         console.error("db-sheets: não foi possível ler data/config.json.", err);
         return null;

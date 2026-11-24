@@ -245,3 +245,40 @@ Abra `data/config.json`: a lista `estoques` e os valores de `metasDefault`
 (plantão/visita/apresentação da semana) podem ser alterados ali diretamente. O resto
 (tipos de ação, pilares, lógica de VGV) está mais amarrado à lógica do painel e por isso
 continua dentro de `js/app.js`/`index.html` por enquanto.
+
+## Atualização de 24/11/2026
+
+**Abas novas (visão do Diretor)** — só leem os registros, não mudam nada na planilha:
+- **Propostas:** todas as propostas em aberto, da mais antiga para a mais nova, com dias em aberto, unidade e valor; embaixo, as que viraram venda e quanto tempo levaram.
+- **Parceiros:** ranking de imobiliárias/corretores com visitas, treinos, propostas, vendas, VGV e último contato. Junta automaticamente nomes parecidos ("Midrah", "Marcos / Midrah") e mostra como cada um foi escrito.
+- **Agenda:** o que o time deixou marcado para os próximos 14 dias.
+- **Mercado:** as observações dos gerentes agrupadas por assunto (obra/barulho, andar, preço, planta, FGTS/HIS, permuta, região, investimento, cliente de fora de SP).
+
+**Mudanças nas abas que já existiam**
+- Pilares separados em 4 (Visitas, Treinamento, Propostas, Vendas) em todos os gráficos.
+- Resumo: VGV vendido, ticket, quem mais vendeu e produto destaque por VGV (no texto de copiar também).
+- Produtos: colunas VGV vendido, em aberto e conversão visita → proposta; produto sem nenhuma ação aparece como "parado". Lista de produtos agora inclui 177, Natury, Apês, Lojas e Multiprodutos.
+- "Atividade recente" virou um bloco no fim da Visão geral (uma aba a menos).
+- Card de CRECI a validar removido.
+- Gráfico por gerente / tendência com o número em cima de cada barra.
+
+**Formulário do gerente**
+- Proposta e Venda pedem a **unidade** (vai no começo da observação, ex.: "Unid. 1207 · ...", até a planilha ganhar coluna própria).
+- "Primeira vez / Recorrente" começa vazio e é obrigatório.
+- Campo Parceiro sugere os nomes que o gerente já usou; não aceita o nome do próprio gerente.
+
+**Relatórios automáticos:** arquivo `apps-script/relatorios.gs` (instruções no topo dele). É um arquivo a mais no Apps Script, não substitui o Code.gs.
+
+**Login lembrado (24/11):** depois de entrar uma vez, o navegador lembra o gerente por 30 dias (renovados a cada visita). Só pede login de novo se ele clicar em **Sair**, ficar 30 dias sem abrir, ou se o Diretor trocar a senha dele. Em computador compartilhado, o gerente deve clicar em Sair ao terminar.
+
+## Versão 2 do Code.gs (24/11/2026) — segurança e registros
+
+- **Login no servidor:** o site não tem mais token nem recebe senhas. Cada pessoa entra com a própria senha e recebe uma sessão de 30 dias. Senhas guardadas embaralhadas (hash) na aba Login; as antigas são convertidas sozinhas no primeiro login. 5 erros = 15 min bloqueado. Trocar senha derruba as sessões da pessoa.
+- **Permissões:** gerente só lê e mexe nos próprios registros e corretores; logins, senhas e metas só o Diretor.
+- **Status dos registros (colunas M–P da aba Registro):** visita/treino com data futura fica *Agendado* e só conta nos números depois que o gerente confirma *Aconteceu* (ou *Não aconteceu*). Proposta pode ser marcada *Perdida* com motivo (sai do valor em aberto) e reaberta. Unidade tem coluna própria.
+- **Editar/excluir:** o gerente edita e exclui os próprios registros em "Meu histórico"; o Diretor exclui qualquer um em "Últimos registros do time" e marca propostas na aba Propostas.
+- **Metas:** plantão de estoque = treino Em Stand fora do Jesuíno; visita a imobiliária = treino Em Imobiliária; apresentação de lançamento = qualquer treino do Jesuíno. Meta de VGV do mês por gerente (padrão R$ 3 mi) na aba Metas, com barra de ritmo no Individual, na Visão geral e no "Meus números".
+- **Atualização:** busca dados a cada 20 s e para quando a aba está em segundo plano (economiza cota do Google).
+- **Portal:** a coluna P da planilha de cadastros guarda por qual link o corretor chegou; aparece na aba Corretores.
+
+Passo a passo de instalação: `COMO-SUBIR.md`.

@@ -357,3 +357,52 @@ input:focus,select:focus,textarea:focus{outline:none; border-color:var(--accent)
 .center-card h1{font-size:18px; margin-bottom:10px; font-weight:500}
 .center-card p{color:var(--muted); font-size:14px; line-height:1.5}
 [hidden]{display:none!important}
+
+/* ---------- 24/11: abas Propostas, Parceiros, Agenda e Mercado ---------- */
+.prod-table tr.is-parado td{color:var(--muted)}
+.tag-parado{display:inline-block; margin-left:6px; font-family:var(--corpo, inherit); font-size:9.5px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; padding:2px 6px; background:var(--red-soft); color:var(--red); vertical-align:middle}
+.lista-table td.txt{text-align:left; white-space:normal; min-width:140px}
+.lista-table th:nth-child(n+2){text-align:right}
+.sub-nomes{font-size:11.5px; color:var(--muted); margin-top:3px; white-space:normal}
+.idade{display:inline-block; font-size:11px; font-weight:600; padding:2px 6px; background:var(--line); color:var(--ink)}
+.idade.media{background:#f3e6c9; color:#7a5a12}
+.idade.alta{background:var(--red-soft); color:var(--red)}
+.ag-dia{margin-bottom:14px}
+.ag-dia-tit{font-family:var(--titulo); font-size:13px; text-transform:uppercase; letter-spacing:.08em; color:var(--accent-2); padding:8px 0 4px; border-bottom:2px solid var(--line)}
+.ag-dia .log-row .d{min-width:84px; color:var(--accent-2); font-weight:600}
+.mk-tema{border-bottom:1px solid var(--line); padding:4px 0}
+.mk-tema summary{cursor:pointer; list-style:none; display:flex; flex-wrap:wrap; align-items:baseline; gap:8px; padding:10px 0}
+.mk-tema summary::-webkit-details-marker{display:none}
+.mk-tema summary::after{content:"+"; margin-left:auto; color:var(--muted); font-size:16px}
+.mk-tema[open] summary::after{content:"–"}
+.mk-n{display:inline-block; min-width:28px; text-align:center; font-weight:700; color:var(--accent-2)}
+.mk-prod{flex-basis:100%; padding-left:36px; font-size:12px; color:var(--muted)}
+#mk-produto, #par-ordem{max-width:320px}
+
+/* ---------- 24/11 (2): status, ações, metas ---------- */
+.st{display:inline-block; font-size:10px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; padding:2px 6px; margin-left:4px; vertical-align:middle}
+.st-agendado{background:#e6eef7; color:#2060a0}
+.st-confirmar{background:#f3e6c9; color:#7a5a12}
+.st-cancelado{background:var(--line); color:var(--muted); text-decoration:line-through}
+.st-perdida{background:var(--red-soft); color:var(--red)}
+.st-negociacao{background:var(--green-soft); color:var(--green)}
+.acoes{display:flex; flex-wrap:wrap; gap:4px 14px; margin-top:6px}
+.lnk{background:none; border:none; padding:2px 0; font:inherit; font-size:12px; font-weight:600; color:var(--accent-2); cursor:pointer; text-decoration:underline; text-underline-offset:3px}
+.lnk.ok{color:var(--green)}
+.lnk.perigo{color:var(--red)}
+.lnk[data-confirma="1"]{background:var(--red); color:#fff; text-decoration:none; padding:2px 8px}
+.perda-box{display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:8px; width:100%}
+.perda-box select{max-width:220px; padding:6px 8px}
+.acao-cel{text-align:right}
+.card-alerta{border-left:3px solid #c9a23f}
+.meta-vgv-top{display:flex; flex-wrap:wrap; justify-content:space-between; gap:6px; font-size:13px; margin-bottom:6px}
+.meta-vgv-tit{font-weight:600}
+.meta-vgv-trilho{position:relative; height:12px; background:var(--line)}
+.meta-vgv-barra{height:100%; background:var(--green)}
+.meta-vgv-barra.atencao{background:#c9a23f}
+.meta-vgv-barra.baixo{background:var(--red)}
+.meta-vgv-marca{position:absolute; top:-4px; bottom:-4px; width:2px; background:var(--ink)}
+.meta-vgv-rodape{font-size:11.5px; color:var(--muted); margin-top:6px}
+td.ok-txt{color:var(--green); font-weight:600}
+td.baixo-txt{color:var(--red)}
+.hint-inline{font-size:11px; color:var(--muted)}

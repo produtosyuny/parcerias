@@ -10,7 +10,7 @@
 <!-- Satoshi (títulos) vem do CDN oficial da fonte, com DM Sans como alternativa
      automática caso o CDN não carregue — ver var(--titulo) em css/styles.css. -->
 <link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700&display=swap">
-<link rel="stylesheet" href="css/styles.css?v=20261123b">
+<link rel="stylesheet" href="css/styles.css?v=20261124c">
 </head>
 <body>
 
@@ -85,8 +85,9 @@
       </div>
 
       <section id="g-novo">
+        <div class="card card-alerta" id="g-pendentes" hidden></div>
         <div class="card">
-          <h2>Registrar ação</h2>
+          <h2 id="form-titulo">Registrar ação</h2>
           <form id="entry-form">
             <label for="f-data">Data</label>
             <input type="date" id="f-data" required>
@@ -113,13 +114,12 @@
                 <label for="f-estoque">Estoque/Lançamento</label>
                 <select id="f-estoque" required>
                   <option value="" disabled selected>Escolha…</option>
-                  <option>Uapé</option><option>Esquina</option><option>155</option>
-                  <option>Zip</option><option>Jesuíno</option><option>Lorena</option><option>Camino</option><option>Outro</option>
                 </select>
               </div>
               <div>
                 <label for="f-primeira">Parceiro novo ou recorrente</label>
                 <select id="f-primeira">
+                  <option value="" selected>Escolha…</option>
                   <option>Primeira vez</option><option>Recorrente</option>
                 </select>
               </div>
@@ -128,6 +128,11 @@
             <div id="f-vgv-wrap" hidden>
               <label for="f-vgv" id="f-vgv-label">VGV da venda (R$)</label>
               <input type="number" id="f-vgv" min="0" step="1000" placeholder="Ex: 350000">
+            </div>
+
+            <div id="f-unidade-wrap" hidden>
+              <label for="f-unidade">Unidade</label>
+              <input id="f-unidade" placeholder="Ex: 1207 (mais de uma: 811, 1207)">
             </div>
 
             <div id="f-conversao-wrap" hidden>
@@ -139,12 +144,16 @@
             </div>
 
             <label for="f-parceiro">Parceiro/Imobiliária</label>
-            <input id="f-parceiro" placeholder="Nome do corretor ou da imobiliária" required>
+            <input id="f-parceiro" placeholder="Nome do corretor ou da imobiliária" list="f-parceiro-lista" autocomplete="off" required>
+            <datalist id="f-parceiro-lista"></datalist>
+            <p class="hint" style="margin-top:4px">Comece a digitar: aparecem os parceiros que você já registrou. Use sempre o mesmo nome para a mesma imobiliária.</p>
 
             <label for="f-obs">Observação (opcional)</label>
             <textarea id="f-obs" placeholder="Qualquer detalhe relevante"></textarea>
 
+            <p class="hint" style="margin-top:4px">Data no futuro = fica como <strong>agendado</strong> e só entra nos números depois que você confirmar que aconteceu.</p>
             <button class="btn" type="submit" id="f-submit">Registrar</button>
+            <button class="btn secondary" type="button" id="f-cancelar-edicao" hidden style="margin-top:8px">Cancelar edição</button>
           </form>
         </div>
       </section>
@@ -194,12 +203,14 @@
         <div class="card">
           <h2>Semana atual vs. meta</h2>
           <div id="me-week"></div>
+          <div id="me-meta-vgv" style="margin-top:16px"></div>
         </div>
       </section>
 
       <section id="g-historico" hidden>
         <div class="card">
           <h2>Últimos registros</h2>
+          <p class="hint">Errou algo? Toque em Editar. Proposta que não vai sair: Perdida.</p>
           <div id="me-log"></div>
         </div>
       </section>
@@ -225,7 +236,10 @@
         <button class="tab" data-tab="d-resumo" aria-selected="false">Resumo</button>
         <button class="tab" data-tab="d-individual" aria-selected="false">Individual</button>
         <button class="tab" data-tab="d-produtos" aria-selected="false">Produtos</button>
-        <button class="tab" data-tab="d-atividade" aria-selected="false">Atividade recente</button>
+        <button class="tab" data-tab="d-propostas" aria-selected="false">Propostas</button>
+        <button class="tab" data-tab="d-parceiros" aria-selected="false">Parceiros</button>
+        <button class="tab" data-tab="d-agenda" aria-selected="false">Agenda</button>
+        <button class="tab" data-tab="d-mercado" aria-selected="false">Mercado</button>
         <button class="tab" data-tab="d-corretores" aria-selected="false">Corretores</button>
         <button class="tab" data-tab="d-metas" aria-selected="false">Metas</button>
         <button class="tab" data-tab="d-gerentes" aria-selected="false">Gerentes</button>
@@ -259,8 +273,6 @@
               <div class="filters-label">Estoque/Lançamento</div>
               <select id="d-estoque-filter">
                 <option value="">Todos</option>
-                <option>Uapé</option><option>Esquina</option><option>155</option>
-                <option>Zip</option><option>Jesuíno</option><option>Lorena</option><option>Camino</option><option>Outro</option>
               </select>
             </div>
           </div>
@@ -269,6 +281,7 @@
         <div class="card">
           <h2>VGV do time no período</h2>
           <div id="d-vgv-hero"></div>
+          <div id="d-meta-vgv" style="margin-top:16px"></div>
         </div>
 
         <div class="card">
@@ -307,6 +320,12 @@
             <h2>Atividades por pilar, por gerente</h2>
             <div id="d-grouped-chart"></div>
           </div>
+        </div>
+
+        <div class="card">
+          <h2>Últimos registros do time</h2>
+          <p class="hint">Segue os filtros de período, gerente e produto lá de cima.</p>
+          <div id="d-log"></div>
         </div>
       </section>
 
@@ -374,6 +393,12 @@
         <div class="card">
           <h2 id="i-vgv-title">VGV no período</h2>
           <div id="i-vgv-hero"></div>
+          <div id="i-meta-vgv" style="margin-top:16px"></div>
+        </div>
+
+        <div class="card">
+          <h2>Rotina da semana vs. meta</h2>
+          <div id="i-week"></div>
         </div>
 
         <div class="card">
@@ -425,10 +450,64 @@
         </div>
       </section>
 
-      <section id="d-atividade" hidden>
+      <section id="d-propostas" hidden>
         <div class="card">
-          <h2>Últimos registros do time</h2>
-          <div id="d-log"></div>
+          <h2>Propostas em aberto</h2>
+          <p class="hint">Todas as propostas do time que ainda não viraram venda, da mais antiga para a mais nova. Uma proposta sai daqui quando o gerente lança a venda ligada a ela. Proposta que não vai sair: toque em "Perdida" e escolha o motivo — ela sai do valor em aberto.</p>
+          <div class="stat-grid" id="pp-resumo"></div>
+        </div>
+        <div class="card">
+          <h2>Abertas</h2>
+          <div class="table-wrap" id="pp-abertas"></div>
+        </div>
+        <div class="card">
+          <h2>Viraram venda</h2>
+          <div class="table-wrap" id="pp-fechadas"></div>
+        </div>
+        <div class="card">
+          <h2>Perdidas</h2>
+          <div class="table-wrap" id="pp-perdidas"></div>
+        </div>
+      </section>
+
+      <section id="d-parceiros" hidden>
+        <div class="card">
+          <h2>Parceiros</h2>
+          <p class="hint">Imobiliárias e corretores que aparecem nos registros, desde o início. Nomes parecidos são juntados automaticamente ("Midrah", "Marcos / Midrah"...). Embaixo do nome aparece como mais foi escrito, pra conferir.</p>
+          <div class="stat-grid" id="par-resumo"></div>
+          <div style="margin-top:14px">
+            <div class="filters-label">Ordenar por</div>
+            <select id="par-ordem">
+              <option value="vgv">VGV e propostas</option>
+              <option value="dias">Mais tempo sem contato</option>
+              <option value="reg">Mais registros</option>
+            </select>
+          </div>
+        </div>
+        <div class="card">
+          <div class="table-wrap" id="par-lista"></div>
+        </div>
+      </section>
+
+      <section id="d-agenda" hidden>
+        <div class="card">
+          <h2>Próximos 14 dias</h2>
+          <p class="hint">Registros com data de hoje em diante — o que o time já deixou marcado (treinos, visitas). Quantos cada gerente tem marcado:</p>
+          <div class="stat-grid" id="ag-resumo"></div>
+        </div>
+        <div class="card">
+          <div id="ag-lista"></div>
+        </div>
+      </section>
+
+      <section id="d-mercado" hidden>
+        <div class="card">
+          <h2>O que os clientes estão dizendo</h2>
+          <p class="hint">Tirado das observações que os gerentes escrevem, agrupado por assunto. Toque num assunto para ler os comentários. Serve de insumo para Produto e Marketing.</p>
+          <select id="mk-produto"></select>
+        </div>
+        <div class="card">
+          <div id="mk-temas"></div>
         </div>
       </section>
 
@@ -453,21 +532,27 @@
       <section id="d-metas" hidden>
         <div class="card">
           <h2>Metas de rotina (por semana)</h2>
-          <p class="hint">Vale para todos os gerentes. Mudar aqui atualiza o painel de todo mundo.</p>
+          <p class="hint">Vale para todos os gerentes. Como conta: <strong>plantão de estoque</strong> = treino Em Stand de qualquer produto, menos o Jesuíno · <strong>visita a imobiliária</strong> = treino Em Imobiliária · <strong>apresentação de lançamento</strong> = qualquer treino do Jesuíno (um treino do Jesuíno na imobiliária conta nas duas). Só conta o que foi realizado.</p>
           <label for="m-plantao">Plantão de estoque</label>
           <input type="number" min="0" id="m-plantao">
           <label for="m-visita">Visita a imobiliária</label>
           <input type="number" min="0" id="m-visita">
           <label for="m-apresentacao">Apresentação de lançamento</label>
           <input type="number" min="0" id="m-apresentacao">
+          <label for="m-vgv">Meta de VGV do mês, por gerente (R$)</label>
+          <input type="number" min="0" step="100000" id="m-vgv" placeholder="3000000">
           <button class="btn" id="m-save">Salvar metas</button>
+        </div>
+        <div class="card">
+          <h2 id="m-time-tit">Esta semana e este mês, por gerente</h2>
+          <div class="table-wrap" id="m-time"></div>
         </div>
       </section>
 
       <section id="d-gerentes" hidden>
         <div class="card">
           <h2>Adicionar gerente</h2>
-          <p class="hint">Crie o login (nome + senha) de cada gerente. Eles usam só isso para entrar — não precisam de conta Claude própria para o painel, mas o link do painel só abre pra quem você liberou como colaborador.</p>
+          <p class="hint">Crie o login (nome + senha) de cada gerente. Eles usam só isso para entrar. Trocar a senha de alguém derruba o acesso dele em todos os aparelhos na hora.</p>
           <label for="ng-nome">Nome</label>
           <input id="ng-nome" placeholder="Nome do gerente">
           <label for="ng-senha">Senha</label>
@@ -497,11 +582,11 @@
 <!-- Antes era js/db-local.js (guardava tudo só no navegador). Agora o Painel
      fala com a planilha Google Sheets via Apps Script — veja o README. Se
      quiser voltar a testar sem a planilha, troque esta linha de volta para
-     <script src="js/db-local.js?v=20261123b"></script>. -->
-<script src="js/db-sheets.js?v=20261123b"></script>
+     <script src="js/db-local.js?v=20261124c"></script>. -->
+<script src="js/db-sheets.js?v=20261124c"></script>
 <!-- html2canvas: biblioteca pra tirar "print" da tela em código, usada só pelo
      botão "Exportar imagem" (ver exportarAbaComoImagem em js/app.js). -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<script src="js/app.js?v=20261123b"></script>
+<script src="js/app.js?v=20261124c"></script>
 </body>
 </html>

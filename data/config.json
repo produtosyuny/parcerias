@@ -1,8 +1,27 @@
 {
-  "estoques": ["Uapé", "Esquina", "155", "Zip", "Jesuíno", "Lorena", "Camino", "Outro"],
-  "metasDefault": { "plantao": 1, "visita": 1, "apresentacao": 3 },
-
-  "_comentario_sheets": "Depois de implantar o Code.gs como Web App (veja o README), cole aqui a URL que o Google te deu em sheetsWebAppUrl. Não precisa trocar o sheetsToken — ele já é o mesmo valor que está em Code.gs.",
+  "estoques": [
+    "Uapé",
+    "Esquina",
+    "155",
+    "177",
+    "Zip",
+    "Jesuíno",
+    "Lorena",
+    "Camino",
+    "Natury",
+    "Apê Jardim Sul",
+    "Apê Vila Ema",
+    "Lojas",
+    "Multiprodutos",
+    "Outro"
+  ],
+  "metasDefault": {
+    "plantao": 1,
+    "visita": 1,
+    "apresentacao": 3
+  },
+  "_comentario_sheets": "URL do App da Web do Code.gs (Implantar > Gerenciar implantações). Não existe mais token aqui: cada pessoa entra com a própria senha e recebe uma sessão do servidor.",
   "sheetsWebAppUrl": "https://script.google.com/macros/s/AKfycbx-YcAc49LwKANSNGm8f1X1QiScbHIIRNKEDotI5OCutGMptieQmN_uqrGfY9tblR_tvA/exec",
-  "sheetsToken": "Lg-7lrc1_HHNaPkYuoo-PrmG"
+  "metaVgvMensal": 3000000,
+  "_comentario_meta": "metaVgvMensal = meta de VGV do mês POR GERENTE (o time = esse valor × nº de gerentes). Pode trocar aqui ou na aba Metas."
 }
