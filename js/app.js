@@ -117,16 +117,19 @@
   // visita a imobiliária E apresentação de lançamento ao mesmo tempo.
   // Os nomes antigos continuam valendo, pra não zerar registros velhos.
   var LANCAMENTOS = { "Jesuíno": true };
+  // w.X = realizados (contam na meta); w.ag.X = marcados/a confirmar (ainda não contam)
   function computeWeek(entries, bounds){
-    var w = { plantao:0, visita:0, apresentacao:0 };
+    var w = { plantao:0, visita:0, apresentacao:0, ag: { plantao:0, visita:0, apresentacao:0 } };
     entries.forEach(function(e){
-      if (!inWeek(e.data, bounds) || !contaComoFeito_(e)) return;
-      var treino = TIPOS_PILAR(e.tipo) === "Treinamento";
-      if (!treino) return;
+      if (!inWeek(e.data, bounds)) return;
+      if (TIPOS_PILAR(e.tipo) !== "Treinamento") return;
+      var st = statusEfetivo_(e);
+      if (st === "Cancelado") return;
+      var alvo = st === "Agendado" ? w.ag : w;
       var lanc = !!LANCAMENTOS[e.estoque];
-      if (e.tipo === "Treinamento - Plantão de estoque" || (e.tipo === "Treinamento - Em Stand" && !lanc)) w.plantao++;
-      if (e.tipo === "Treinamento - Visita a imobiliária" || e.tipo === "Treinamento - Em Imobiliária") w.visita++;
-      if (e.tipo === "Treinamento - Apresentação de lançamento" || lanc) w.apresentacao++;
+      if (e.tipo === "Treinamento - Plantão de estoque" || (e.tipo === "Treinamento - Em Stand" && !lanc)) alvo.plantao++;
+      if (e.tipo === "Treinamento - Visita a imobiliária" || e.tipo === "Treinamento - Em Imobiliária") alvo.visita++;
+      if (e.tipo === "Treinamento - Apresentação de lançamento" || lanc) alvo.apresentacao++;
     });
     return w;
   }
@@ -294,18 +297,20 @@
     return ok ? '<span class="pill ok">OK</span>' : '<span class="pill low">Abaixo</span>';
   }
   function weekRowsHTML(w, metasNow){
+    var ag = w.ag || {};
     var rows = [
-      ["Plantão de estoque", w.plantao, metasNow.plantao],
-      ["Visita a imobiliária", w.visita, metasNow.visita],
-      ["Apresentação de lançamento", w.apresentacao, metasNow.apresentacao]
+      ["Plantão de estoque", w.plantao, metasNow.plantao, ag.plantao || 0],
+      ["Visita a imobiliária", w.visita, metasNow.visita, ag.visita || 0],
+      ["Apresentação de lançamento", w.apresentacao, metasNow.apresentacao, ag.apresentacao || 0]
     ];
+    var totalAg = rows.reduce(function(s, r){ return s + r[3]; }, 0);
     return rows.map(function(r){
       var ok = r[1] >= r[2];
       return '<div class="mini-grid" style="grid-template-columns:1fr auto auto; align-items:center; margin-top:8px">'+
-        '<div class="s">'+r[0]+'</div>'+
+        '<div class="s">'+r[0]+(r[3] ? ' <span class="st st-agendado">+' + r[3] + ' agendado' + (r[3] > 1 ? 's' : '') + '</span>' : '')+'</div>'+
         '<div class="v">'+r[1]+' / '+r[2]+'</div>'+
         pill(ok) + '</div>';
-    }).join("");
+    }).join("") + (totalAg ? '<p class="hint" style="margin-top:10px">Agendados só contam depois que o gerente confirma "Aconteceu" (no "Novo registro" dele).</p>' : '');
   }
 
   function renderEscaped(s){
@@ -780,10 +785,12 @@
     };
   }
 
+  // rótulo em cima, valor embaixo; nada de número cortado (valor em R$ vem curto: "R$ 1,53 mi")
   function destaqueTileHTML(valueText, label, subText, emptyMsg){
     var n = (valueText == null) ? '<div class="n n-empty">' + renderEscaped(emptyMsg || "Sem dados") + '</div>' : '<div class="n">' + renderEscaped(valueText) + '</div>';
-    return '<div class="stat destaque">' + n + '<div class="l">' + renderEscaped(label) + '</div>' + (subText ? '<div class="sub">' + renderEscaped(subText) + '</div>' : '') + '</div>';
+    return '<div class="stat destaque"><div class="l">' + renderEscaped(label) + '</div>' + n + (subText ? '<div class="sub">' + renderEscaped(subText) + '</div>' : '') + '</div>';
   }
+  function plural_(n, um, varios){ return n + " " + (n === 1 ? um : varios); }
 
   function buildResumoText(r){
     var b = r.bounds;
@@ -795,8 +802,8 @@
     if (r.campeaoVgv) linhas.push("Quem mais vendeu: " + r.campeaoVgv.nome + " (" + fmtBRL(r.campeaoVgv.vgv) + ")");
     linhas.push("Produto destaque: " + (r.produtoDestaque ? r.produtoDestaque.label + (r.produtoDestaque.criterio === "vgv" ? " (" + fmtBRL(r.produtoDestaque.value) + " vendidos)" : " (" + r.produtoDestaque.value + " atividades, sem venda no período)") : "sem registros no período"));
     linhas.push("Atividade: " + r.totals.visitas + " visitas · " + r.totals.treinamentos + " treinamentos");
-    linhas.push("Campeão de visitas: " + (r.campeaoVisitas ? r.campeaoVisitas.nome + " (" + r.campeaoVisitas.visitas + " visitas)" : "nenhuma visita registrada"));
-    linhas.push("Mais treinamento: " + (r.campeaoTreino ? r.campeaoTreino.nome + " (" + r.campeaoTreino.treinamentos + " treinamentos)" : "nenhum treinamento registrado"));
+    linhas.push("Mais visitas: " + (r.campeaoVisitas ? r.campeaoVisitas.nome + " (" + plural_(r.campeaoVisitas.visitas, "visita", "visitas") + ")" : "nenhuma visita registrada"));
+    linhas.push("Mais treinamentos: " + (r.campeaoTreino ? r.campeaoTreino.nome + " (" + plural_(r.campeaoTreino.treinamentos, "treinamento", "treinamentos") + ")" : "nenhum treinamento registrado"));
     linhas.push("Propostas no período: " + r.totals.propostas + " (" + fmtBRL(r.totals.vgvPropostas) + " ainda em aberto)" + deltaTextoSimples_(r.totals.propostas, r.totalsPrev.propostas));
     linhas.push("");
     if (r.alertas.length){
@@ -822,12 +829,12 @@
     $("r-destaques-title").textContent = "Destaques — " + periodLabel(rState);
 
     $("r-destaques").innerHTML =
-      destaqueTileHTML(fmtBRL(r.totals.vgv), "VGV vendido", r.totals.vendas + (r.totals.vendas === 1 ? " venda" : " vendas") + (r.totals.vendas ? " · ticket " + fmtBRLCurto_(r.totals.vgv / r.totals.vendas) : "") + deltaTextoSimples_(r.totals.vgv, r.totalsPrev.vgv)) +
-      destaqueTileHTML(r.campeaoVgv ? r.campeaoVgv.nome : null, "Quem mais vendeu", r.campeaoVgv ? fmtBRL(r.campeaoVgv.vgv) : "", "Nenhuma venda no período") +
-      destaqueTileHTML(r.produtoDestaque ? r.produtoDestaque.label : null, "Produto destaque", r.produtoDestaque ? (r.produtoDestaque.criterio === "vgv" ? fmtBRL(r.produtoDestaque.value) + " vendidos" : r.produtoDestaque.value + " atividades (sem venda)") : "", "Sem registros no período") +
-      destaqueTileHTML(r.campeaoVisitas ? r.campeaoVisitas.nome : null, "Campeão de visitas", r.campeaoVisitas ? r.campeaoVisitas.visitas + " visitas" : "", "Nenhuma visita registrada") +
-      destaqueTileHTML(r.campeaoTreino ? r.campeaoTreino.nome : null, "Mais treinamento", r.campeaoTreino ? r.campeaoTreino.treinamentos + " treinamentos" : "", "Nenhum treinamento registrado") +
-      destaqueTileHTML(String(r.totals.propostas), "Propostas no período", fmtBRL(r.totals.vgvPropostas) + " ainda em aberto" + deltaTextoSimples_(r.totals.propostas, r.totalsPrev.propostas));
+      destaqueTileHTML(fmtBRLCurto_(r.totals.vgv), "VGV vendido", plural_(r.totals.vendas, "venda", "vendas") + (r.totals.vendas ? " · ticket " + fmtBRLCurto_(r.totals.vgv / r.totals.vendas) : "") + deltaTextoSimples_(r.totals.vgv, r.totalsPrev.vgv)) +
+      destaqueTileHTML(String(r.totals.propostas), "Propostas", fmtBRLCurto_(r.totals.vgvPropostas) + " em aberto" + deltaTextoSimples_(r.totals.propostas, r.totalsPrev.propostas)) +
+      destaqueTileHTML(r.campeaoVgv ? r.campeaoVgv.nome : null, "Quem mais vendeu", r.campeaoVgv ? fmtBRLCurto_(r.campeaoVgv.vgv) : "", "Ninguém vendeu") +
+      destaqueTileHTML(r.produtoDestaque ? r.produtoDestaque.label : null, "Produto destaque", r.produtoDestaque ? (r.produtoDestaque.criterio === "vgv" ? fmtBRLCurto_(r.produtoDestaque.value) + " vendidos" : plural_(r.produtoDestaque.value, "atividade", "atividades") + ", sem venda") : "", "Sem registros") +
+      destaqueTileHTML(r.campeaoVisitas ? r.campeaoVisitas.nome : null, "Mais visitas", r.campeaoVisitas ? plural_(r.campeaoVisitas.visitas, "visita", "visitas") : "", "Nenhuma visita") +
+      destaqueTileHTML(r.campeaoTreino ? r.campeaoTreino.nome : null, "Mais treinamentos", r.campeaoTreino ? plural_(r.campeaoTreino.treinamentos, "treinamento", "treinamentos") : "", "Nenhum treinamento");
 
     if (!r.temGerentes){
       $("r-alertas").innerHTML = '<p class="empty">Ainda não há gerentes cadastrados.</p>';
@@ -1098,33 +1105,79 @@
     return { bounds: bounds, nomes: nomes, porProduto: porProduto, total: total, temGerentes: ids.length > 0 };
   }
 
+  // ---------- tabela que ordena clicando no título da coluna ----------
+  // cols: [{k, label, num, html(row), txt}] · rows: objetos com o valor de cada k
+  // estado: {k, dir} — guardado por tabela. Clicar de novo inverte a ordem.
+  function tabelaOrdenavel_(wrap, cols, rows, estado, opts){
+    opts = opts || {};
+    var lista = rows.slice();
+    if (estado.k){
+      var col = cols.filter(function(c){ return c.k === estado.k; })[0] || {};
+      lista.sort(function(a, b){
+        var va = a[estado.k], vb = b[estado.k];
+        var r;
+        if (col.num) r = (Number(va) || 0) - (Number(vb) || 0);
+        else r = String(va == null ? "" : va).localeCompare(String(vb == null ? "" : vb), "pt-BR");
+        return estado.dir === "asc" ? r : -r;
+      });
+    }
+    var th = cols.map(function(c){
+      var ativo = estado.k === c.k;
+      return '<th class="ord' + (c.txt ? ' th-txt' : '') + (ativo ? ' ativo' : '') + '" data-k="' + c.k + '" title="Ordenar por ' + renderEscaped(c.label) + '">' +
+        renderEscaped(c.label) + (ativo ? (estado.dir === "asc" ? " ▲" : " ▼") : "") + '</th>';
+    }).join("") + (opts.extraTh ? '<th></th>' : '');
+    function tr(r, cls){
+      return '<tr' + (cls ? ' class="' + cls + '"' : '') + '>' + cols.map(function(c){
+        var v = c.html ? c.html(r) : renderEscaped(r[c.k] == null ? "—" : String(r[c.k]));
+        var zero = c.num && !Number(r[c.k]);
+        return '<td class="' + (c.txt ? 'txt' : '') + (zero ? ' zero' : '') + '">' + v + '</td>';
+      }).join("") + (opts.extraTd ? '<td class="acao-cel">' + opts.extraTd(r) + '</td>' : '') + '</tr>';
+    }
+    wrap.innerHTML = '<table class="prod-table lista-table"><thead><tr>' + th + '</tr></thead><tbody>' +
+      lista.map(function(r){ return tr(r, opts.rowCls ? opts.rowCls(r) : ""); }).join("") +
+      (opts.total ? tr(opts.total, "is-total") : "") + '</tbody></table>';
+    if (!wrap.dataset.ordWired){
+      wrap.dataset.ordWired = "1";
+      wrap.addEventListener("click", function(ev){
+        var h = ev.target.closest ? ev.target.closest("th.ord") : null;
+        if (!h || !wrap.contains(h)) return;
+        var k = h.getAttribute("data-k");
+        if (wrap._estado.k === k) wrap._estado.dir = wrap._estado.dir === "asc" ? "desc" : "asc";
+        else { wrap._estado.k = k; wrap._estado.dir = (wrap._cols.filter(function(c){ return c.k === k; })[0] || {}).num ? "desc" : "asc"; }
+        wrap._rerender();
+      });
+    }
+    wrap._estado = estado; wrap._cols = cols; wrap._rerender = opts.rerender;
+    marcarOverflow_(wrap);
+  }
+
+  var prodOrd = { k: null, dir: "desc" };
   function renderProdutosTable(){
     if (!me || me.papel !== "diretor") return;
     var r = computeProdutos();
     $("p-empty").hidden = r.temGerentes;
     $("p-table-title").textContent = "Ações por produto — " + periodLabel(pState);
-
-    function cell(n){ return '<td class="' + (n ? "" : "zero") + '">' + n + '</td>'; }
-    function cellBRL(n){ return '<td class="' + (n ? "" : "zero") + '">' + (n ? fmtBRLCurto_(n) : "—") + '</td>'; }
-    function cellPct(num, den){ return '<td class="' + (den ? "" : "zero") + '">' + (den ? Math.round(num / den * 100) + "%" : "—") + '</td>'; }
-    function linha(nome, b, cls){
-      var parado = !cls && (b.visitas + b.treinamentos + b.propostas + b.vendas) === 0;
-      return '<tr' + (cls ? ' class="' + cls + '"' : (parado ? ' class="is-parado"' : '')) + '><td class="produto-nome">' + renderEscaped(nome) + (parado ? ' <span class="tag-parado">parado</span>' : '') + '</td>' +
-        cell(b.visitas) + cell(b.treinamentos) + cell(b.propostas) + cell(b.vendas) +
-        cellBRL(b.vgv) + cellBRL(b.vgvAberto) + cellPct(b.propostas, b.visitas) + '</tr>';
-    }
-    var rows = r.nomes.map(function(nome){ return linha(nome, r.porProduto[nome]); }).join("");
-    var totalRow = linha("Total", r.total, "is-total");
     var wrap = $("p-table");
-    wrap.innerHTML = r.nomes.length ?
-      '<table class="prod-table"><thead><tr><th>Produto</th><th>Visitas</th><th>Treinamentos</th><th>Propostas</th><th>Vendas</th><th>VGV vendido</th><th>Em aberto</th><th>Visita → proposta</th></tr></thead>' +
-      '<tbody>' + rows + totalRow + '</tbody></table>' :
-      '<p class="empty">Sem produtos cadastrados em data/config.json.</p>';
-    // sombra de "tem mais pra esse lado" só quando a tabela não cabe inteira
-    // na largura da tela (típico no celular) — recalcula depois do innerHTML
-    // acima já ter aplicado layout.
-    requestAnimationFrame(function(){
-      wrap.classList.toggle("has-overflow", wrap.scrollWidth > wrap.clientWidth + 1);
+    if (!r.nomes.length){ wrap.innerHTML = '<p class="empty">Sem produtos cadastrados em data/config.json.</p>'; return; }
+    function linha(nome, b){
+      var tot = b.visitas + b.treinamentos + b.propostas + b.vendas;
+      return { nome: nome, visitas: b.visitas, treinamentos: b.treinamentos, propostas: b.propostas, vendas: b.vendas,
+        vgv: b.vgv, vgvAberto: b.vgvAberto, conv: b.visitas ? Math.round(b.propostas / b.visitas * 100) : -1, parado: tot === 0 };
+    }
+    var brl = function(k){ return function(x){ return x[k] ? fmtBRLCurto_(x[k]) : "—"; }; };
+    tabelaOrdenavel_(wrap, [
+      { k: "nome", label: "Produto", txt: true, html: function(x){ return '<span class="produto-nome">' + renderEscaped(x.nome) + '</span>' + (x.parado ? ' <span class="tag-parado">parado</span>' : ''); } },
+      { k: "visitas", label: "Visitas", num: true },
+      { k: "treinamentos", label: "Treinos", num: true },
+      { k: "propostas", label: "Propostas", num: true },
+      { k: "vendas", label: "Vendas", num: true },
+      { k: "vgv", label: "VGV vendido", num: true, html: brl("vgv") },
+      { k: "vgvAberto", label: "Em aberto", num: true, html: brl("vgvAberto") },
+      { k: "conv", label: "Visita → proposta", num: true, html: function(x){ return x.conv < 0 ? "—" : x.conv + "%"; } }
+    ], r.nomes.map(function(n){ return linha(n, r.porProduto[n]); }), prodOrd, {
+      total: Object.assign(linha("Total", r.total), { parado: false }),
+      rowCls: function(x){ return x.parado ? "is-parado" : ""; },
+      rerender: renderProdutosTable
     });
   }
 
@@ -1748,6 +1801,7 @@
       $("f-cancelar-edicao").addEventListener("click", function(){ sairDoModoEdicao_(); limparForm_(); });
       $("me-log").addEventListener("click", acaoRegistro_);
       $("g-pendentes").addEventListener("click", acaoRegistro_);
+      $("g-agenda-lista").addEventListener("click", acaoRegistro_);
     }
 
     if (unsubMyEntries){ try{ unsubMyEntries(); }catch(e){} }
@@ -1755,6 +1809,7 @@
       myEntriesRaw = snap.docs.map(function(d){ return d.data(); });
       atualizarSugestoesParceiro_();
       renderPendentes_();
+      renderMinhaAgenda_();
       renderMeAll();
       renderMeLog(myEntriesRaw);
       // se o form estiver aberto numa Venda, mantém a lista de propostas em
@@ -2144,12 +2199,12 @@
     var ids = Object.keys(logins).filter(function(id){ return (logins[id] || {}).papel === "gerente"; })
       .sort(function(a,b){ return ((logins[a] || {}).nome || "").localeCompare((logins[b] || {}).nome || ""); });
     var wb = weekBounds(), meta = metaVgvGerente_();
-    function cel(v, m){ return '<td class="' + (v >= m ? "ok-txt" : "baixo-txt") + '">' + v + ' / ' + m + '</td>'; }
+    function cel(v, m, a){ return '<td class="' + (v >= m ? "ok-txt" : "baixo-txt") + '">' + v + ' / ' + m + (a ? ' <span class="hint-inline">+' + a + ' ag.</span>' : '') + '</td>'; }
     $("m-time").innerHTML = ids.length ? '<table class="prod-table"><thead><tr><th>Gerente</th><th>Plantão</th><th>Visita imob.</th><th>Apres. Jesuíno</th><th>VGV do mês</th></tr></thead><tbody>' +
       ids.map(function(id){
         var raw = entriesByGerente[id] || [], w = computeWeek(raw, wb), v = vgvDoMes_(raw);
         return '<tr><td class="produto-nome">' + renderEscaped((logins[id] || {}).nome || id) + '</td>' +
-          cel(w.plantao, metas.plantao) + cel(w.visita, metas.visita) + cel(w.apresentacao, metas.apresentacao) +
+          cel(w.plantao, metas.plantao, w.ag.plantao) + cel(w.visita, metas.visita, w.ag.visita) + cel(w.apresentacao, metas.apresentacao, w.ag.apresentacao) +
           '<td>' + fmtBRLCurto_(v) + ' <span class="hint-inline">' + Math.round(v / meta * 100) + '%</span></td></tr>';
       }).join("") + '</tbody></table>' : '<p class="empty">Sem gerentes.</p>';
     $("m-time-tit").textContent = "Esta semana (" + fmtRange(wb) + ") e este mês, por gerente";
@@ -2385,6 +2440,7 @@
   }
 
   // ---------- Propostas ----------
+  var ppOrd = { k: "dias", dir: "desc" };
   function renderPropostasTab(){
     if (!me || me.papel !== "diretor" || !$("pp-abertas")) return;
     var todos = todosRegistros_();
@@ -2426,9 +2482,19 @@
         '<td class="acao-cel">' + (extra === "aberta" ? botaoProp(x, "perdida", "Perdida") : (e.status === "Perdida" ? botaoProp(x, "reabrir", "Reabrir") : "")) + '</td></tr>';
     }
     var cab = '<thead><tr><th>Data</th><th>%s</th><th>Gerente</th><th>Produto</th><th>Unid.</th><th>Parceiro</th><th>Valor</th><th></th></tr></thead>';
-    $("pp-abertas").innerHTML = abertas.length
-      ? '<table class="prod-table lista-table">' + cab.replace("%s", "Aberta há") + '<tbody>' + abertas.map(function(x){ return linhaProp(x, "aberta"); }).join("") + '</tbody></table>'
-      : '<p class="empty">Nenhuma proposta em aberto.</p>';
+    if (!abertas.length) $("pp-abertas").innerHTML = '<p class="empty">Nenhuma proposta em aberto.</p>';
+    else tabelaOrdenavel_($("pp-abertas"), [
+      { k: "data", label: "Data", html: function(x){ return fmtDM(x.data); } },
+      { k: "dias", label: "Aberta há", num: true, html: function(x){ return '<span class="' + (x.dias >= 15 ? "idade alta" : (x.dias >= 7 ? "idade media" : "idade")) + '">' + x.dias + 'd</span>'; } },
+      { k: "gerente", label: "Gerente", txt: true },
+      { k: "produto", label: "Produto", txt: true },
+      { k: "unidade", label: "Unid." },
+      { k: "parceiro", label: "Parceiro", txt: true },
+      { k: "valor", label: "Valor", num: true, html: function(x){ return fmtBRLCurto_(x.valor); } }
+    ], abertas.map(function(x){
+      return { data: x.e.data, dias: x.dias, gerente: x.who, produto: x.e.estoque || "—", unidade: unidadeDe_(x.e) || "—",
+        parceiro: x.e.parceiro || "—", valor: vgvNum_(x.e), _x: x };
+    }), ppOrd, { extraTh: true, extraTd: function(r){ return botaoProp(r._x, "perdida", "Perdida"); }, rerender: renderPropostasTab });
     $("pp-fechadas").innerHTML = fechadas.length
       ? '<table class="prod-table lista-table">' + cab.replace("%s", "Virou venda") + '<tbody>' + fechadas.map(function(x){
           var v = convertidas[x.e.criadoEm].e; return linhaProp(x, fmtDM(v.data) + " (" + Math.max(0, diasEntre_(x.e.data, v.data)) + "d)");
@@ -2441,13 +2507,16 @@
   }
 
   // ---------- Parceiros ----------
-  var parState = { ordem: "vgv" };
+  // O que importa aqui é visita, proposta e venda. Quem só fez treinamento
+  // fica escondido por padrão (caixinha pra mostrar).
+  var parOrd = { k: "vgv", dir: "desc" };
+  var parState = { soTreino: false };
   function renderParceirosTab(){
     if (!me || me.papel !== "diretor" || !$("par-lista")) return;
-    var ordSel = $("par-ordem");
-    if (ordSel && !ordSel.dataset.ok){
-      ordSel.dataset.ok = "1";
-      ordSel.addEventListener("change", function(){ parState.ordem = ordSel.value; renderParceirosTab(); });
+    var chk = $("par-sotreino");
+    if (chk && !chk.dataset.ok){
+      chk.dataset.ok = "1";
+      chk.addEventListener("change", function(){ parState.soTreino = chk.checked; renderParceirosTab(); });
     }
     var hoje = hojeISO_();
     var todos = todosRegistros_();
@@ -2455,64 +2524,80 @@
     todos.forEach(function(x){ quem.set(x.e, x.who); });
     var grupos = agruparParceiros_(todos.map(function(x){ return x.e; }));
     var linhas = grupos.map(function(g){
-      var r = { nome: g.nome, variantes: g.variantes, reg: g.entries.length, visitas: 0, treinos: 0, propostas: 0, vendas: 0, vgv: 0, ultimo: null, gerentes: {} };
+      var r = { nome: g.nome, variantes: g.variantes, visitas: 0, treinos: 0, propostas: 0, vendas: 0, vgv: 0, ultimo: null, ger: {} };
       g.entries.forEach(function(e){
+        if (!contaComoFeito_(e) && e.tipo !== "Venda - Proposta") return;
         var p = TIPOS_PILAR(e.tipo);
         if (p === "Visitas") r.visitas++;
         else if (p === "Treinamento") r.treinos++;
         else if (e.tipo === "Venda - Proposta") r.propostas++;
         else if (e.tipo === "Venda - Venda"){ r.vendas++; r.vgv += vgvNum_(e); }
         if (e.data && e.data <= hoje && (!r.ultimo || e.data > r.ultimo)) r.ultimo = e.data;
-        var w = quem.get(e); if (w) r.gerentes[w] = true;
+        var w = quem.get(e); if (w) r.ger[w] = true;
       });
-      r.dias = r.ultimo ? diasEntre_(r.ultimo, hoje) : null;
+      r.gerentes = Object.keys(r.ger).join(", ");
+      r.dias = r.ultimo ? diasEntre_(r.ultimo, hoje) : 9999;
+      r.soTreino = (r.visitas + r.propostas + r.vendas) === 0;
       return r;
-    });
-    var ord = parState.ordem;
-    linhas.sort(function(a,b){
-      if (ord === "dias") return (b.dias == null ? -1 : b.dias) - (a.dias == null ? -1 : a.dias);
-      if (ord === "reg") return b.reg - a.reg;
-      return (b.vgv - a.vgv) || (b.propostas - a.propostas) || (b.reg - a.reg);
-    });
-    var comVenda = linhas.filter(function(r){ return r.vendas > 0; }).length;
-    var esfriando = linhas.filter(function(r){ return r.dias != null && r.dias > 15; }).length;
-    var multi = linhas.filter(function(r){ return Object.keys(r.gerentes).length > 1; }).length;
+    }).filter(function(r){ return (r.visitas + r.treinos + r.propostas + r.vendas) > 0; });
+    var nSoTreino = linhas.filter(function(r){ return r.soTreino; }).length;
+    var comNegocio = linhas.filter(function(r){ return !r.soTreino; });
+    if ($("par-sotreino-txt")) $("par-sotreino-txt").textContent = "Mostrar quem só fez treinamento (" + nSoTreino + ")";
     $("par-resumo").innerHTML =
-      statTile(linhas.length, "Parceiros com registro") +
-      statTile(comVenda, "Já geraram venda") +
-      statTile(esfriando, "Mais de 15 dias sem contato") +
-      statTile(multi, "Atendidos por 2+ gerentes");
-    $("par-lista").innerHTML = linhas.length ? '<table class="prod-table lista-table"><thead><tr><th>Parceiro</th><th>Gerente(s)</th><th>Reg.</th><th>Visitas</th><th>Treinos</th><th>Propostas</th><th>Vendas</th><th>VGV</th><th>Último contato</th></tr></thead><tbody>' +
-      linhas.map(function(r){
-        var diasTxt = r.dias == null ? "—" : (r.dias === 0 ? "hoje" : r.dias + "d");
-        var cls = r.dias != null && r.dias > 15 ? "idade alta" : (r.dias != null && r.dias > 7 ? "idade media" : "idade");
-        return '<tr><td class="txt"><strong>' + renderEscaped(r.nome) + '</strong>' +
-          (r.variantes.length ? '<div class="sub-nomes">também escrito: ' + r.variantes.map(renderEscaped).join(" · ") + '</div>' : '') + '</td>' +
-          '<td class="txt">' + Object.keys(r.gerentes).map(renderEscaped).join(", ") + '</td>' +
-          '<td>' + r.reg + '</td><td class="' + (r.visitas ? "" : "zero") + '">' + r.visitas + '</td><td class="' + (r.treinos ? "" : "zero") + '">' + r.treinos + '</td>' +
-          '<td class="' + (r.propostas ? "" : "zero") + '">' + r.propostas + '</td><td class="' + (r.vendas ? "" : "zero") + '">' + r.vendas + '</td>' +
-          '<td class="' + (r.vgv ? "" : "zero") + '">' + (r.vgv ? fmtBRLCurto_(r.vgv) : "—") + '</td>' +
-          '<td>' + (r.ultimo ? fmtDM(r.ultimo) + ' <span class="' + cls + '">' + diasTxt + '</span>' : "só agendado") + '</td></tr>';
-      }).join("") + '</tbody></table>' : '<p class="empty">Nenhum parceiro registrado ainda.</p>';
-    marcarOverflow_($("par-lista"));
+      statTile(comNegocio.length, "Com visita, proposta ou venda") +
+      statTile(linhas.filter(function(r){ return r.propostas > 0; }).length, "Com proposta") +
+      statTile(linhas.filter(function(r){ return r.vendas > 0; }).length, "Com venda") +
+      statTile(comNegocio.filter(function(r){ return r.dias > 15 && r.dias < 9999; }).length, "Mais de 15 dias sem contato");
+    var visiveis = parState.soTreino ? linhas : comNegocio;
+    if (!visiveis.length){ $("par-lista").innerHTML = '<p class="empty">Nenhum parceiro com visita, proposta ou venda ainda.</p>'; return; }
+    tabelaOrdenavel_($("par-lista"), [
+      { k: "nome", label: "Parceiro", txt: true, html: function(r){
+          return '<strong' + (r.variantes.length ? ' title="Também escrito: ' + renderEscaped(r.variantes.join(" · ")) + '"' : '') + '>' + renderEscaped(r.nome) + '</strong>'; } },
+      { k: "gerentes", label: "Gerente(s)", txt: true },
+      { k: "visitas", label: "Visitas", num: true },
+      { k: "propostas", label: "Propostas", num: true },
+      { k: "vendas", label: "Vendas", num: true },
+      { k: "vgv", label: "VGV", num: true, html: function(r){ return r.vgv ? fmtBRLCurto_(r.vgv) : "—"; } },
+      { k: "dias", label: "Último contato", num: true, html: function(r){
+          if (!r.ultimo) return "—";
+          var cls = r.dias > 15 ? "idade alta" : (r.dias > 7 ? "idade media" : "idade");
+          return fmtDM(r.ultimo) + ' <span class="' + cls + '">' + (r.dias === 0 ? "hoje" : r.dias + "d") + '</span>'; } },
+      { k: "treinos", label: "Treinos", num: true }
+    ], visiveis, parOrd, { rerender: renderParceirosTab });
   }
 
   // ---------- Agenda ----------
+  // tocar no card de um gerente filtra a lista; tocar de novo volta pra todos
+  var agState = { gerente: "" };
   function renderAgendaTab(){
     if (!me || me.papel !== "diretor" || !$("ag-lista")) return;
+    var box = $("ag-resumo");
+    if (!box.dataset.ok){
+      box.dataset.ok = "1";
+      box.addEventListener("click", function(ev){
+        var t = ev.target.closest ? ev.target.closest("[data-ger]") : null;
+        if (!t) return;
+        var g = t.getAttribute("data-ger");
+        agState.gerente = (agState.gerente === g) ? "" : g;
+        renderAgendaTab();
+      });
+    }
     var hoje = hojeISO_();
     var lim = new Date(); lim.setDate(lim.getDate() + 14);
     var limISO = lim.getFullYear() + "-" + String(lim.getMonth() + 1).padStart(2, "0") + "-" + String(lim.getDate()).padStart(2, "0");
-    var itens = todosRegistros_().filter(function(x){ return x.e.data && x.e.data >= hoje && x.e.data <= limISO; })
+    var todosItens = todosRegistros_().filter(function(x){ return x.e.data && x.e.data >= hoje && x.e.data <= limISO && statusEfetivo_(x.e) !== "Cancelado"; })
       .sort(function(a,b){ return a.e.data.localeCompare(b.e.data) || a.who.localeCompare(b.who); });
     var porGerente = {};
-    itens.forEach(function(x){ porGerente[x.who] = (porGerente[x.who] || 0) + 1; });
-    var ids = Object.keys(logins).filter(function(id){ return (logins[id] || {}).papel === "gerente"; });
-    $("ag-resumo").innerHTML = ids.map(function(id){
-      var n = (logins[id] || {}).nome || id;
-      return statTile(porGerente[n] || 0, n);
-    }).join("");
-    if (!itens.length){ $("ag-lista").innerHTML = '<p class="empty">Nada marcado para os próximos 14 dias.</p>'; return; }
+    todosItens.forEach(function(x){ porGerente[x.who] = (porGerente[x.who] || 0) + 1; });
+    var ids = Object.keys(logins).filter(function(id){ return (logins[id] || {}).papel === "gerente"; })
+      .sort(function(a,b){ return ((logins[a] || {}).nome || "").localeCompare((logins[b] || {}).nome || ""); });
+    box.innerHTML = '<div class="stat stat-filtro' + (agState.gerente ? '' : ' sel') + '" data-ger="" role="button" tabindex="0"><div class="n">' + todosItens.length + '</div><div class="l">Todos</div></div>' +
+      ids.map(function(id){
+        var n = (logins[id] || {}).nome || id;
+        return '<div class="stat stat-filtro' + (agState.gerente === n ? ' sel' : '') + '" data-ger="' + renderEscaped(n) + '" role="button" tabindex="0"><div class="n">' + (porGerente[n] || 0) + '</div><div class="l">' + renderEscaped(n) + '</div></div>';
+      }).join("");
+    var itens = agState.gerente ? todosItens.filter(function(x){ return x.who === agState.gerente; }) : todosItens;
+    if (!itens.length){ $("ag-lista").innerHTML = '<p class="empty">Nada marcado para os próximos 14 dias' + (agState.gerente ? ' para ' + renderEscaped(agState.gerente) : '') + '.</p>'; return; }
     var DIAS = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
     var html = "", atual = null;
     itens.forEach(function(x){
@@ -2523,11 +2608,39 @@
         html += '<div class="ag-dia"><div class="ag-dia-tit">' + (atual === hoje ? "Hoje · " : "") + DIAS[d.getDay()] + " " + fmtDM(atual) + '</div>';
       }
       html += '<div class="log-row"><div class="d">' + renderEscaped(x.who) + '</div><div class="t">' + renderEscaped(x.e.tipo) +
-        (x.e.estoque ? " · " + renderEscaped(x.e.estoque) : "") + (x.e.parceiro ? " · " + renderEscaped(x.e.parceiro) : "") +
+        (x.e.estoque ? " · " + renderEscaped(x.e.estoque) : "") + (x.e.parceiro ? " · " + renderEscaped(x.e.parceiro) : "") + ' ' + statusTagHTML_(x.e) +
         (x.e.observacao ? '<div class="sub-nomes">' + renderEscaped(x.e.observacao) + '</div>' : '') + '</div></div>';
     });
     html += '</div>';
     $("ag-lista").innerHTML = html;
+  }
+
+  // ---------- Minha agenda (visão do gerente) ----------
+  // o que ele deixou marcado de hoje até 14 dias, por dia; com Aconteceu /
+  // Não aconteceu / Editar direto na linha.
+  function renderMinhaAgenda_(){
+    var box = $("g-agenda-lista");
+    if (!box || !me || me.papel !== "gerente") return;
+    var hoje = hojeISO_();
+    var lim = new Date(); lim.setDate(lim.getDate() + 14);
+    var limISO = lim.getFullYear() + "-" + String(lim.getMonth() + 1).padStart(2, "0") + "-" + String(lim.getDate()).padStart(2, "0");
+    var itens = myEntriesRaw.filter(function(e){ return e.data && e.data >= hoje && e.data <= limISO && statusEfetivo_(e) !== "Cancelado"; })
+      .sort(function(a,b){ return a.data.localeCompare(b.data) || (a.criadoEm || "").localeCompare(b.criadoEm || ""); });
+    var tab = document.querySelector('#view-gerente > .tabs .tab[data-tab="g-agenda"]');
+    if (tab) tab.textContent = "Minha agenda" + (itens.length ? " (" + itens.length + ")" : "");
+    if (!itens.length){ box.innerHTML = '<p class="empty">Nada marcado para os próximos 14 dias. Para agendar, registre a ação com a data futura em "Novo registro".</p>'; return; }
+    var DIAS = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
+    var html = "", atual = null;
+    itens.forEach(function(e){
+      if (e.data !== atual){
+        if (atual) html += '</div>';
+        atual = e.data;
+        var d = new Date(atual + "T00:00:00");
+        html += '<div class="ag-dia"><div class="ag-dia-tit">' + (atual === hoje ? "Hoje · " : "") + DIAS[d.getDay()] + " " + fmtDM(atual) + '</div>';
+      }
+      html += registroRowHTML(e, { gid: me.id, podeEditar: true });
+    });
+    $("g-agenda-lista").innerHTML = html + '</div>';
   }
 
   // ---------- Mercado (o que os clientes dizem, tirado das observações) ----------

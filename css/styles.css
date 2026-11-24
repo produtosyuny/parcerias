@@ -406,3 +406,20 @@ input:focus,select:focus,textarea:focus{outline:none; border-color:var(--accent)
 td.ok-txt{color:var(--green); font-weight:600}
 td.baixo-txt{color:var(--red)}
 .hint-inline{font-size:11px; color:var(--muted)}
+
+/* ---------- 24/11 (3): ordenar colunas, filtros, destaques ---------- */
+th.ord{cursor:pointer; user-select:none}
+th.ord:hover{color:var(--ink)}
+th.ord.ativo{color:var(--ink)}
+.lista-table th.th-txt{text-align:left}
+.prod-table td.txt{text-align:left; white-space:normal}
+.stat-filtro{cursor:pointer}
+.stat-filtro.sel{background:var(--accent-soft); border-top-color:var(--accent-2)}
+.chk-linha{display:flex; align-items:center; gap:8px; margin-top:14px; font-size:13px; text-transform:none; letter-spacing:0; color:var(--ink-2); cursor:pointer}
+.chk-linha input{width:auto; margin:0}
+#r-destaques{grid-template-columns:repeat(3,1fr)}
+@media (max-width:640px){#r-destaques{grid-template-columns:repeat(2,1fr)}}
+.stat.destaque .l{margin-bottom:6px}
+.stat.destaque .n{font-size:24px; overflow-wrap:anywhere}
+.stat.destaque .n.n-empty{font-size:15px}
+.stat.destaque .sub{margin-top:6px}

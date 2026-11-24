@@ -10,7 +10,7 @@
 <!-- Satoshi (títulos) vem do CDN oficial da fonte, com DM Sans como alternativa
      automática caso o CDN não carregue — ver var(--titulo) em css/styles.css. -->
 <link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700&display=swap">
-<link rel="stylesheet" href="css/styles.css?v=20261124c">
+<link rel="stylesheet" href="css/styles.css?v=20261124e">
 </head>
 <body>
 
@@ -22,8 +22,8 @@
   </div>
 
   <div id="noaccess" class="center-card card" hidden>
-    <h1>Sem acesso a esta página</h1>
-    <p>Abra este link pela sua conta Claude. Se ainda não tiver acesso, peça ao Rogerio para liberar você como colaborador deste painel.</p>
+    <h1>Não foi possível conectar</h1>
+    <p>Recarregue a página (no computador: Ctrl+F5). Se continuar, verifique a internet ou fale com o Diretor de Parcerias.</p>
   </div>
 
   <div id="app" hidden>
@@ -79,6 +79,7 @@
           <div class="side-role">Gerente</div>
         </div>
         <button class="tab" data-tab="g-novo" aria-selected="true">Novo registro</button>
+        <button class="tab" data-tab="g-agenda" aria-selected="false">Minha agenda</button>
         <button class="tab" data-tab="g-numeros" aria-selected="false">Meus números</button>
         <button class="tab" data-tab="g-historico" aria-selected="false">Meu histórico</button>
         <button class="tab" data-tab="g-corretores" aria-selected="false">Meus corretores</button>
@@ -155,6 +156,14 @@
             <button class="btn" type="submit" id="f-submit">Registrar</button>
             <button class="btn secondary" type="button" id="f-cancelar-edicao" hidden style="margin-top:8px">Cancelar edição</button>
           </form>
+        </div>
+      </section>
+
+      <section id="g-agenda" hidden>
+        <div class="card">
+          <h2>Minha agenda — próximos 14 dias</h2>
+          <p class="hint">Depois que passar a data, toque em "Aconteceu" para contar nos seus números.</p>
+          <div id="g-agenda-lista"></div>
         </div>
       </section>
 
@@ -445,7 +454,7 @@
         </div>
         <div class="card">
           <h2 id="p-table-title">Ações por produto — semana atual</h2>
-          <p class="hint">Time inteiro, sem filtro de gerente — os mesmos 4 pilares de sempre, agora agrupados por produto/lançamento em vez de por gerente.</p>
+          <p class="hint">Toque no título de uma coluna para ordenar.</p>
           <div class="table-wrap" id="p-table"></div>
         </div>
       </section>
@@ -453,7 +462,7 @@
       <section id="d-propostas" hidden>
         <div class="card">
           <h2>Propostas em aberto</h2>
-          <p class="hint">Todas as propostas do time que ainda não viraram venda, da mais antiga para a mais nova. Uma proposta sai daqui quando o gerente lança a venda ligada a ela. Proposta que não vai sair: toque em "Perdida" e escolha o motivo — ela sai do valor em aberto.</p>
+          <p class="hint">Sai daqui quando vira venda ou é marcada como perdida.</p>
           <div class="stat-grid" id="pp-resumo"></div>
         </div>
         <div class="card">
@@ -473,16 +482,9 @@
       <section id="d-parceiros" hidden>
         <div class="card">
           <h2>Parceiros</h2>
-          <p class="hint">Imobiliárias e corretores que aparecem nos registros, desde o início. Nomes parecidos são juntados automaticamente ("Midrah", "Marcos / Midrah"...). Embaixo do nome aparece como mais foi escrito, pra conferir.</p>
+          <p class="hint">Desde o início, juntando nomes parecidos da mesma imobiliária. Toque no título de uma coluna para ordenar.</p>
           <div class="stat-grid" id="par-resumo"></div>
-          <div style="margin-top:14px">
-            <div class="filters-label">Ordenar por</div>
-            <select id="par-ordem">
-              <option value="vgv">VGV e propostas</option>
-              <option value="dias">Mais tempo sem contato</option>
-              <option value="reg">Mais registros</option>
-            </select>
-          </div>
+          <label class="chk-linha"><input type="checkbox" id="par-sotreino"> <span id="par-sotreino-txt">Mostrar quem só fez treinamento</span></label>
         </div>
         <div class="card">
           <div class="table-wrap" id="par-lista"></div>
@@ -492,7 +494,7 @@
       <section id="d-agenda" hidden>
         <div class="card">
           <h2>Próximos 14 dias</h2>
-          <p class="hint">Registros com data de hoje em diante — o que o time já deixou marcado (treinos, visitas). Quantos cada gerente tem marcado:</p>
+          <p class="hint">Toque num gerente para ver só a agenda dele.</p>
           <div class="stat-grid" id="ag-resumo"></div>
         </div>
         <div class="card">
@@ -582,11 +584,11 @@
 <!-- Antes era js/db-local.js (guardava tudo só no navegador). Agora o Painel
      fala com a planilha Google Sheets via Apps Script — veja o README. Se
      quiser voltar a testar sem a planilha, troque esta linha de volta para
-     <script src="js/db-local.js?v=20261124c"></script>. -->
-<script src="js/db-sheets.js?v=20261124c"></script>
+     <script src="js/db-local.js?v=20261124e"></script>. -->
+<script src="js/db-sheets.js?v=20261124e"></script>
 <!-- html2canvas: biblioteca pra tirar "print" da tela em código, usada só pelo
      botão "Exportar imagem" (ver exportarAbaComoImagem em js/app.js). -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<script src="js/app.js?v=20261124c"></script>
+<script src="js/app.js?v=20261124e"></script>
 </body>
 </html>
